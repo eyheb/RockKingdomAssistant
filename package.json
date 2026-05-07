@@ -7,7 +7,7 @@
     "node": ">=20 <25"
   },
   "scripts": {
-    "build:data": "node scripts/build-data.mjs",
+    "build:data": "node scripts/build-data.mjs && node scripts/import-biligame-dex.mjs",
     "dev": "node scripts/server.mjs",
     "build": "npm run build:data",
     "start": "node scripts/server.mjs",

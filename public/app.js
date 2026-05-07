@@ -8,8 +8,8 @@ const viewTitles = {
 
 const state = {
   activeView: "assistant",
-  data: { spirits: [], groups: [], exchange: [] },
-  latestResults: { spirits: [], groups: [], exchange: [], totals: { spirits: 0, groups: 0, exchange: 0 } },
+  data: { spirits: [], groups: [], exchange: [], biligameDex: [] },
+  latestResults: { spirits: [], dex: [], groups: [], exchange: [], totals: { spirits: 0, dex: 0, groups: 0, exchange: 0 } },
   messages: [
     {
       role: "assistant",
@@ -96,7 +96,7 @@ function renderMessages() {
 }
 
 function renderInspector(data) {
-  elements.resultMeta.textContent = `资料总量：${data.totals.spirits} 精灵 / ${data.totals.groups} 蛋组 / ${data.totals.exchange} 交换记录`;
+  elements.resultMeta.textContent = `资料总量：${data.totals.spirits} 蛋组精灵 / ${data.totals.dex || 0} 图鉴 / ${data.totals.groups} 蛋组 / ${data.totals.exchange} 交换记录`;
 
   if (!data.query) {
     elements.spirits.innerHTML = `<p class="empty">输入关键词后显示精灵匹配</p>`;
@@ -107,6 +107,9 @@ function renderInspector(data) {
 
   elements.spirits.innerHTML = data.spirits.length
     ? data.spirits.map((item) => resultCard(item.name, "", item.eggGroups)).join("")
+      + data.dex.map((item) => resultCard(`NO.${item.number} · ${item.name}`, [item.stage, item.form, item.types.join(" / ")].filter(Boolean).join(" · "), item.types)).join("")
+    : data.dex.length
+      ? data.dex.map((item) => resultCard(`NO.${item.number} · ${item.name}`, [item.stage, item.form, item.types.join(" / ")].filter(Boolean).join(" · "), item.types)).join("")
     : `<p class="empty">没有匹配精灵</p>`;
 
   elements.groups.innerHTML = data.groups.length
@@ -126,30 +129,42 @@ function renderInspector(data) {
 }
 
 function renderDataViews() {
-  const { spirits, groups, exchange } = state.data;
+  const { spirits, groups, exchange, biligameDex = [] } = state.data;
   const exchangeBySpirit = new Map();
   exchange.forEach((item) => {
     if (!exchangeBySpirit.has(item.spirit)) exchangeBySpirit.set(item.spirit, []);
     exchangeBySpirit.get(item.spirit).push(item);
   });
 
-  elements.spiritCount.textContent = `${spirits.length} 精灵`;
+  elements.spiritCount.textContent = `${spirits.length} 蛋组精灵 / ${biligameDex.length} 图鉴`;
   elements.groupCount.textContent = `${groups.length} 蛋组`;
   elements.exchangeCount.textContent = `${exchange.length} 记录`;
-  const summary = `${spirits.length} 精灵 / ${groups.length} 蛋组 / ${exchange.length} 交换记录`;
+  const summary = `${spirits.length} 蛋组精灵 / ${biligameDex.length} 图鉴 / ${groups.length} 蛋组 / ${exchange.length} 交换记录`;
   elements.assistantMeta.textContent = summary;
   elements.spiritMeta.textContent = summary;
   elements.groupMeta.textContent = summary;
   elements.exchangeMeta.textContent = summary;
 
-  elements.spiritTable.innerHTML = spirits
-    .map((spirit) => {
+  const dexByName = new Map();
+  biligameDex.forEach((item) => {
+    if (!dexByName.has(item.name)) dexByName.set(item.name, []);
+    dexByName.get(item.name).push(item);
+  });
+  const mergedNames = [...new Set([...spirits.map((item) => item.name), ...biligameDex.map((item) => item.name)])].sort((a, b) => a.localeCompare(b, "zh-Hans-CN"));
+
+  elements.spiritTable.innerHTML = mergedNames
+    .map((name) => {
+      const spirit = spirits.find((item) => item.name === name) || { name, eggGroups: [] };
+      const dexRows = dexByName.get(name) || [];
       const exchangeRows = exchangeBySpirit.get(spirit.name) || [];
       const exchangeText = exchangeRows.length ? exchangeRows.map((item) => `${item.id} ${item.gender || ""} ${item.nature || ""}`).join("；") : "暂无";
+      const dexText = dexRows.length
+        ? dexRows.map((item) => `NO.${item.number} ${item.types.join("/")} ${item.stage || ""}`).join("；")
+        : "";
       return `
         <tr>
           <td><strong>${escapeHtml(spirit.name)}</strong></td>
-          <td>${tagsHtml(spirit.eggGroups)}</td>
+          <td>${tagsHtml([...spirit.eggGroups, ...dexRows.flatMap((item) => item.types)])}${dexText ? `<p class="muted">${escapeHtml(dexText)}</p>` : ""}</td>
           <td>${escapeHtml(exchangeText)}</td>
         </tr>
       `;

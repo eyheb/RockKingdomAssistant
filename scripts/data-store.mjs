@@ -16,11 +16,16 @@ export function loadData() {
   const spiritFile = readJson("spirits.json", { spirits: [] });
   const eggGroupFile = readJson("egg-groups.json", { groups: [] });
   const exchangeFile = readJson("exchange.json", { entries: [] });
+  const biligameDexFile = readJson("biligame-spirit-dex.json", { spirits: [], source: null });
 
   return {
     spirits: spiritFile.spirits,
     groups: eggGroupFile.groups,
-    exchange: exchangeFile.entries
+    exchange: exchangeFile.entries,
+    biligameDex: biligameDexFile.spirits,
+    sources: {
+      biligameDex: biligameDexFile.source
+    }
   };
 }
 
@@ -38,12 +43,22 @@ function includesAny(fields, query) {
   });
 }
 
+function exactNameMatch(value, query) {
+  return normalize(value) === normalize(query);
+}
+
+function nameContainedInQuery(value, query) {
+  const normalizedValue = normalize(value);
+  const normalizedQuery = normalize(query);
+  return normalizedValue.length >= 2 && normalizedQuery.includes(normalizedValue);
+}
+
 function sortByName(a, b) {
   return (a.name || a.spirit || "").localeCompare(b.name || b.spirit || "", "zh-Hans-CN");
 }
 
 export function searchKnowledge(query, limit = 12) {
-  const { spirits, groups, exchange } = loadData();
+  const { spirits, groups, exchange, biligameDex } = loadData();
   const cleanQuery = String(query || "").trim();
   const safeLimit = Number.isFinite(Number(limit)) ? Math.max(1, Math.min(Number(limit), 50)) : 12;
 
@@ -51,10 +66,12 @@ export function searchKnowledge(query, limit = 12) {
     return {
       query: cleanQuery,
       spirits: spirits.slice(0, safeLimit),
+      dex: biligameDex.slice(0, safeLimit),
       groups: groups.slice(0, safeLimit),
       exchange: exchange.slice(0, safeLimit),
       totals: {
         spirits: spirits.length,
+        dex: biligameDex.length,
         groups: groups.length,
         exchange: exchange.length
       }
@@ -69,6 +86,33 @@ export function searchKnowledge(query, limit = 12) {
   const groupMatches = groups
     .filter((group) => includesAny([group.name, ...group.spirits], cleanQuery))
     .sort(sortByName)
+    .slice(0, safeLimit);
+
+  const namedDexMatches = biligameDex.filter(
+    (spirit) =>
+      exactNameMatch(spirit.name, cleanQuery) ||
+      exactNameMatch(spirit.wikiTitle, cleanQuery) ||
+      nameContainedInQuery(spirit.name, cleanQuery) ||
+      nameContainedInQuery(spirit.wikiTitle, cleanQuery)
+  );
+  const dexSource = namedDexMatches.length
+    ? namedDexMatches
+    : biligameDex.filter((spirit) =>
+        includesAny(
+          [
+            spirit.number,
+            spirit.name,
+            spirit.wikiTitle,
+            spirit.stage,
+            spirit.form,
+            ...spirit.types,
+            ...spirit.specialForms
+          ],
+          cleanQuery
+        )
+      );
+  const dexMatches = dexSource
+    .sort((a, b) => Number(a.number) - Number(b.number) || a.name.localeCompare(b.name, "zh-Hans-CN"))
     .slice(0, safeLimit);
 
   const exchangeMatches = exchange
@@ -92,10 +136,12 @@ export function searchKnowledge(query, limit = 12) {
   return {
     query: cleanQuery,
     spirits: spiritMatches,
+    dex: dexMatches,
     groups: groupMatches,
     exchange: exchangeMatches,
     totals: {
       spirits: spirits.length,
+      dex: biligameDex.length,
       groups: groups.length,
       exchange: exchange.length
     }
@@ -108,6 +154,9 @@ export function formatResultsForPrompt(results) {
     "",
     "精灵匹配：",
     ...results.spirits.map((item) => `- ${item.name}：${item.eggGroups.join("、") || "未知蛋组"}`),
+    "",
+    "图鉴匹配：",
+    ...results.dex.map((item) => `- NO.${item.number} ${item.name}：${item.types.join("、") || "未知属性"}，${item.stage || "未知阶段"}，${item.form || "未知形态"}${item.wikiUrl ? `，页面 ${item.wikiUrl}` : ""}`),
     "",
     "蛋组匹配：",
     ...results.groups.map((item) => `- ${item.name}：${item.spirits.slice(0, 20).join("、")}`),
@@ -133,6 +182,14 @@ export function localFallbackAnswer(question) {
     parts.push(
       `精灵资料：${results.spirits
         .map((item) => `${item.name}（${item.eggGroups.join("、") || "未知蛋组"}）`)
+        .join("；")}`
+    );
+  }
+
+  if (results.dex.length) {
+    parts.push(
+      `图鉴资料：${results.dex
+        .map((item) => `NO.${item.number} ${item.name}（${item.types.join("、") || "未知属性"}，${item.stage || "未知阶段"}，${item.form || "未知形态"}）`)
         .join("；")}`
     );
   }

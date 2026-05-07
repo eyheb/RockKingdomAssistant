@@ -8,8 +8,15 @@
 
 - 从 `materials/raw/洛克王国世界_交换数据库.xlsx` 生成交换数据库。
 - 从 `materials/raw/蛋组查询.html` 生成蛋组资料。
+- 从 BWIKI 洛克王国世界“精灵图鉴”导入编号、名称、属性、形态、立绘链接等结构化图鉴资料。
 - 提供 `GET /api/search`、`GET /api/data`、`POST /api/chat`。
 - 未配置模型时使用本地资料摘要；配置模型后会把检索结果作为上下文传给模型。
+
+## 数据来源
+
+图鉴资料来源：`https://wiki.biligame.com/rocom/精灵图鉴`。
+
+BWIKI 页面提示文本数据采用 `CC BY-NC-SA 4.0（署名-非商业性使用-相同方式共享）`，使用时需要标注来源链接。
 
 ## 本地启动
 
