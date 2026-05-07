@@ -157,5 +157,5 @@ export function localFallbackAnswer(question) {
     return "我暂时没有在本地资料里匹配到结果。可以换个精灵名、蛋组名、性格或朋友名称再查。";
   }
 
-  return `${parts.join("\n\n")}\n\n当前没有配置模型，我先按本地资料做摘要。`;
+  return `${parts.join("\n\n")}\n\n我先按本地资料做摘要。`;
 }
