@@ -91,7 +91,9 @@ async function writeGithubStore(config, store, sha) {
   });
 
   if (!response.ok) {
-    throw new Error(`GitHub store write failed: ${response.status} ${await response.text()}`);
+    const error = new Error(`GitHub store write failed: ${response.status} ${await response.text()}`);
+    error.status = response.status;
+    throw error;
   }
 }
 
@@ -117,16 +119,9 @@ export async function readCommunityStore() {
   }
 }
 
-async function writeCommunityStore(store) {
+async function writeLocalCommunityStore(store) {
   const normalized = normalizeStore(store);
   normalized.updatedAt = nowIso();
-  const config = githubConfig();
-
-  if (config) {
-    const latest = await readGithubStore(config);
-    await writeGithubStore(config, normalized, latest.sha);
-    return normalized;
-  }
 
   try {
     await fs.mkdir(path.dirname(localStorePath), { recursive: true });
@@ -135,6 +130,32 @@ async function writeCommunityStore(store) {
     await fs.writeFile(localWritableStorePath, JSON.stringify(normalized, null, 2), "utf8");
   }
   return normalized;
+}
+
+async function mutateCommunityStore(mutator) {
+  const config = githubConfig();
+
+  if (config) {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const latest = await readGithubStore(config);
+      const draft = normalizeStore(latest.store);
+      mutator(draft);
+      const normalized = normalizeStore(draft);
+      normalized.updatedAt = nowIso();
+
+      try {
+        await writeGithubStore(config, normalized, latest.sha);
+        return normalized;
+      } catch (error) {
+        if (error.status === 409 && attempt < 2) continue;
+        throw error;
+      }
+    }
+  }
+
+  const store = await readCommunityStore();
+  mutator(store);
+  return writeLocalCommunityStore(store);
 }
 
 function normalizeEntry(input) {
@@ -188,17 +209,17 @@ function sanitizeEntry(input, existingEntry) {
 }
 
 export async function saveCommunityEntry(input) {
-  const store = await readCommunityStore();
-  const entryIndex = store.entries.findIndex((entry) => entry.id === input?.id);
-  const entry = sanitizeEntry(input, entryIndex === -1 ? null : store.entries[entryIndex]);
-  if (entryIndex === -1) store.entries.push(entry);
-  else store.entries[entryIndex] = entry;
-  return writeCommunityStore(store);
+  return mutateCommunityStore((store) => {
+    const entryIndex = store.entries.findIndex((entry) => entry.id === input?.id);
+    const entry = sanitizeEntry(input, entryIndex === -1 ? null : store.entries[entryIndex]);
+    if (entryIndex === -1) store.entries.push(entry);
+    else store.entries[entryIndex] = entry;
+  });
 }
 
 export async function deleteCommunityEntry(input) {
-  const store = await readCommunityStore();
-  const id = cleanText(input?.id, 80);
-  store.entries = store.entries.filter((entry) => entry.id !== id);
-  return writeCommunityStore(store);
+  return mutateCommunityStore((store) => {
+    const id = cleanText(input?.id, 80);
+    store.entries = store.entries.filter((entry) => entry.id !== id);
+  });
 }
