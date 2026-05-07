@@ -662,8 +662,10 @@ svg {
 
 .dex-art {
   display: grid;
+  width: 100%;
   aspect-ratio: 1 / 1;
   place-items: center;
+  cursor: pointer;
   border-bottom: 1px solid var(--border);
   background: linear-gradient(180deg, rgba(232, 238, 245, 0.88), rgba(248, 250, 252, 0.94));
 }
@@ -785,7 +787,12 @@ svg {
 }
 
 .dex-open-detail,
-.link-button {
+.link-button,
+.source-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
   cursor: pointer;
   border: 1px solid rgba(176, 80, 30, 0.32);
   border-radius: 8px;
@@ -794,6 +801,13 @@ svg {
   padding: 7px 10px;
   font-size: 12px;
   font-weight: 700;
+  text-decoration: none;
+}
+
+.source-button {
+  border-color: var(--border);
+  background: var(--card);
+  color: var(--muted-foreground);
 }
 
 .dex-empty {
@@ -808,6 +822,12 @@ svg {
   border-bottom: 1px solid var(--border);
   background: rgba(232, 238, 245, 0.35);
   padding: 16px;
+}
+
+.detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .detail-hero-main {
@@ -959,13 +979,23 @@ svg {
   gap: 10px;
 }
 
-.evolution-list a {
+.evolution-list button {
   display: grid;
   width: 92px;
   justify-items: center;
   gap: 5px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
   color: var(--foreground);
   text-decoration: none;
+  padding: 6px;
+}
+
+.evolution-list button:hover {
+  border-color: var(--border);
+  background: var(--accent);
 }
 
 .evolution-list img {
@@ -1050,8 +1080,149 @@ svg {
   font-size: 12px;
 }
 
-.exchange-list {
-  padding: 16px;
+.exchange-workbench {
+  display: grid;
+  min-height: 0;
+  flex: 1;
+  grid-template-columns: 320px minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.exchange-editor {
+  overflow: auto;
+  border-right: 1px solid var(--border);
+  background: rgba(248, 250, 252, 0.72);
+}
+
+.exchange-editor-section {
+  border-bottom: 1px solid var(--border);
+  padding: 14px;
+}
+
+.exchange-editor-section h3 {
+  margin: 0 0 10px;
+  font-size: 13px;
+}
+
+.exchange-form {
+  display: grid;
+  gap: 9px;
+}
+
+.exchange-form.stacked label,
+.form-row label {
+  display: grid;
+  gap: 5px;
+}
+
+.exchange-form span {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.exchange-form input,
+.exchange-form select,
+.exchange-form textarea,
+.exchange-toolbar input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--foreground);
+  outline: none;
+  padding: 8px 9px;
+  font-size: 12px;
+}
+
+.exchange-form button,
+.exchange-toolbar button,
+.row-actions button {
+  cursor: pointer;
+  border: 1px solid rgba(176, 80, 30, 0.32);
+  border-radius: 8px;
+  background: rgba(176, 80, 30, 0.08);
+  color: var(--primary);
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.exchange-meta-text {
+  margin: 9px 0 0;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+}
+
+.form-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.exchange-table-pane {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.exchange-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+  padding: 12px;
+}
+
+.exchange-table-wrap {
+  overflow: auto;
+}
+
+.exchange-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.exchange-table th,
+.exchange-table td {
+  border-bottom: 1px solid var(--border);
+  padding: 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.exchange-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--card);
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.muted-action {
+  color: var(--muted-foreground);
+  font-size: 12px;
 }
 
 .hidden {
@@ -1074,6 +1245,15 @@ svg {
   .dex-reset {
     grid-column: 1 / -1;
     justify-self: start;
+  }
+
+  .exchange-workbench {
+    grid-template-columns: 1fr;
+  }
+
+  .exchange-editor {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
   }
 }
 
@@ -1162,5 +1342,10 @@ svg {
 
   .detail-panel.wide {
     grid-column: auto;
+  }
+
+  .form-row,
+  .stats-grid {
+    grid-template-columns: 1fr;
   }
 }

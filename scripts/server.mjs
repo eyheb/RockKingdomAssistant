@@ -2,7 +2,13 @@ import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { callModel as callSharedModel, loadData, searchKnowledge } from "./api-shared.mjs";
+import { callModel as callSharedModel, loadDataAsync, searchKnowledgeAsync } from "./api-shared.mjs";
+import {
+  deleteCommunityEntry,
+  readCommunityStore,
+  saveCommunityEntry,
+  saveCommunityUser
+} from "./community-store.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const projectRoot = path.resolve(path.dirname(__filename), "..");
@@ -147,12 +153,35 @@ export function createServer() {
       if (request.method === "GET" && url.pathname === "/api/search") {
         const query = url.searchParams.get("q") || "";
         const limit = url.searchParams.get("limit") || "12";
-        sendJson(response, 200, searchKnowledge(query, limit));
+        sendJson(response, 200, await searchKnowledgeAsync(query, limit));
         return;
       }
 
       if (request.method === "GET" && url.pathname === "/api/data") {
-        sendJson(response, 200, loadData());
+        sendJson(response, 200, await loadDataAsync());
+        return;
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/community-exchange") {
+        sendJson(response, 200, await readCommunityStore());
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/community-exchange") {
+        const body = await readBody(request);
+        if (body.action === "saveUser") {
+          sendJson(response, 200, await saveCommunityUser(body.user));
+          return;
+        }
+        if (body.action === "saveEntry") {
+          sendJson(response, 200, await saveCommunityEntry(body.entry));
+          return;
+        }
+        if (body.action === "deleteEntry") {
+          sendJson(response, 200, await deleteCommunityEntry(body));
+          return;
+        }
+        sendJson(response, 400, { error: "unknown action" });
         return;
       }
 

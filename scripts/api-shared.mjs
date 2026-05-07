@@ -1,4 +1,11 @@
-import { formatResultsForPrompt, localFallbackAnswer, loadData, searchKnowledge } from "./data-store.mjs";
+import {
+  formatResultsForPrompt,
+  loadData,
+  loadDataAsync,
+  localFallbackAnswerAsync,
+  searchKnowledge,
+  searchKnowledgeAsync
+} from "./data-store.mjs";
 
 export function jsonResponse(payload, statusCode = 200, headers = {}) {
   return new Response(JSON.stringify(payload), {
@@ -53,12 +60,12 @@ function getModelTimeoutMs() {
 export async function callModel(message, history = []) {
   const apiKey = process.env.LLM_API_KEY?.trim();
   if (!apiKey) {
-    return { answer: localFallbackAnswer(message), mode: "local" };
+    return { answer: await localFallbackAnswerAsync(message), mode: "local" };
   }
 
   const baseUrl = process.env.LLM_BASE_URL?.trim() || "https://api.openai.com/v1";
   const model = process.env.LLM_MODEL?.trim() || "gpt-4o-mini";
-  const results = searchKnowledge(message, 10);
+  const results = await searchKnowledgeAsync(message, 10);
   const context = formatResultsForPrompt(results);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), getModelTimeoutMs());
@@ -94,7 +101,7 @@ export async function callModel(message, history = []) {
     });
   } catch (error) {
     return {
-      answer: localFallbackAnswer(message),
+      answer: await localFallbackAnswerAsync(message),
       mode: "local",
       warning: error?.name === "AbortError" ? "模型接口响应超时，已改用本地资料摘要。" : "模型接口暂时不可达，已改用本地资料摘要。"
     };
@@ -105,7 +112,7 @@ export async function callModel(message, history = []) {
   if (!upstream.ok) {
     const errorText = await upstream.text();
     return {
-      answer: localFallbackAnswer(message),
+      answer: await localFallbackAnswerAsync(message),
       mode: "local",
       warning: `模型接口调用失败：${errorText.slice(0, 300)}`
     };
@@ -113,10 +120,10 @@ export async function callModel(message, history = []) {
 
   const payload = await upstream.json();
   return {
-    answer: payload?.choices?.[0]?.message?.content || localFallbackAnswer(message),
+    answer: payload?.choices?.[0]?.message?.content || await localFallbackAnswerAsync(message),
     mode: "llm",
     results
   };
 }
 
-export { loadData, searchKnowledge };
+export { loadData, loadDataAsync, searchKnowledge, searchKnowledgeAsync };

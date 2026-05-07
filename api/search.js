@@ -1,7 +1,7 @@
-import { jsonResponse, textResponse, searchKnowledge } from "../scripts/api-shared.mjs";
+import { jsonResponse, textResponse, searchKnowledgeAsync } from "../scripts/api-shared.mjs";
 
 export default {
-  fetch(request) {
+  async fetch(request) {
     if (request.method !== "GET") {
       return textResponse("Method not allowed", 405, { allow: "GET" });
     }
@@ -10,6 +10,6 @@ export default {
     const query = url.searchParams.get("q") || "";
     const limit = url.searchParams.get("limit") || "12";
 
-    return jsonResponse(searchKnowledge(query, limit));
+    return jsonResponse(await searchKnowledgeAsync(query, limit));
   }
 };

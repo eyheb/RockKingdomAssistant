@@ -18,6 +18,15 @@
 
 BWIKI 页面提示文本数据采用 `CC BY-NC-SA 4.0（署名-非商业性使用-相同方式共享）`，使用时需要标注来源链接。
 
+## 共享交换表
+
+本地开发默认写入 `data/community-exchange.json`。部署到 Vercel 时，文件系统不会持久保存用户编辑内容；要让朋友在线编辑后长期保存，需要配置 GitHub 写入：
+
+- `COMMUNITY_GITHUB_REPO`：例如 `eyheb/LockKingdomAssistant`
+- `COMMUNITY_GITHUB_TOKEN`：带 contents 读写权限的 GitHub token
+- `COMMUNITY_GITHUB_BRANCH`：默认 `main`
+- `COMMUNITY_GITHUB_PATH`：默认 `data/community-exchange.json`
+
 ## 本地启动
 
 ```powershell

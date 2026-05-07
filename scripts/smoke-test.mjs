@@ -33,6 +33,12 @@ try {
     throw new Error("Data smoke test failed: 魔力猫 not found");
   }
 
+  const communityResponse = await fetch(`${baseUrl}/api/community-exchange`);
+  const community = await communityResponse.json();
+  if (!Array.isArray(community.entries)) {
+    throw new Error("Community exchange smoke test failed: entries missing");
+  }
+
   const chatResponse = await fetch(`${baseUrl}/api/chat`, {
     method: "POST",
     headers: { "content-type": "application/json" },

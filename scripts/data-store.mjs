@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readCommunityStore } from "./community-store.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const projectRoot = path.resolve(path.dirname(__filename), "..");
@@ -12,17 +13,35 @@ function readJson(filename, fallback) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
 
+function normalizeCommunityEntries(file) {
+  return (file.entries || []).map((entry) => ({
+    ...entry,
+    id: entry.ownerName || entry.ownerId || entry.id,
+    ownerName: entry.ownerName || entry.id || "",
+    spirit: entry.spirit || "",
+    gender: entry.gender || "",
+    nature: entry.nature || "",
+    note: entry.note || "",
+    eggGroups: Array.isArray(entry.eggGroups) ? entry.eggGroups : [],
+    stats: entry.stats || {}
+  }));
+}
+
 export function loadData() {
   const spiritFile = readJson("spirits.json", { spirits: [] });
   const eggGroupFile = readJson("egg-groups.json", { groups: [] });
   const exchangeFile = readJson("exchange.json", { entries: [] });
   const biligameDexFile = readJson("biligame-spirit-dex.json", { spirits: [], source: null });
   const biligameDetailsFile = readJson("biligame-spirit-details.json", { details: [], source: null });
+  const communityExchangeFile = readJson("community-exchange.json", { users: [], entries: [] });
+  const communityExchange = normalizeCommunityEntries(communityExchangeFile);
 
   return {
     spirits: spiritFile.spirits,
     groups: eggGroupFile.groups,
-    exchange: exchangeFile.entries,
+    exchange: communityExchange.length ? communityExchange : exchangeFile.entries,
+    communityExchange,
+    communityUsers: communityExchangeFile.users || [],
     biligameDex: biligameDexFile.spirits,
     biligameDetails: biligameDetailsFile.details,
     sources: {
@@ -30,6 +49,22 @@ export function loadData() {
       biligameDetails: biligameDetailsFile.source
     }
   };
+}
+
+export async function loadDataAsync() {
+  const data = loadData();
+  try {
+    const communityStore = await readCommunityStore();
+    const communityExchange = normalizeCommunityEntries(communityStore);
+    return {
+      ...data,
+      exchange: communityExchange.length ? communityExchange : data.exchange,
+      communityExchange,
+      communityUsers: communityStore.users || []
+    };
+  } catch {
+    return data;
+  }
 }
 
 function normalize(value) {
@@ -61,7 +96,15 @@ function sortByName(a, b) {
 }
 
 export function searchKnowledge(query, limit = 12) {
-  const { spirits, groups, exchange, biligameDex, biligameDetails } = loadData();
+  return searchKnowledgeInData(loadData(), query, limit);
+}
+
+export async function searchKnowledgeAsync(query, limit = 12) {
+  return searchKnowledgeInData(await loadDataAsync(), query, limit);
+}
+
+function searchKnowledgeInData(data, query, limit = 12) {
+  const { spirits, groups, exchange, biligameDex, biligameDetails } = data;
   const cleanQuery = String(query || "").trim();
   const safeLimit = Number.isFinite(Number(limit)) ? Math.max(1, Math.min(Number(limit), 50)) : 12;
   const detailsByUrl = new Map(biligameDetails.map((detail) => [detail.wikiUrl, detail]));
@@ -192,6 +235,14 @@ export function formatResultsForPrompt(results) {
 
 export function localFallbackAnswer(question) {
   const results = searchKnowledge(question, 8);
+  return localFallbackAnswerFromResults(results);
+}
+
+export async function localFallbackAnswerAsync(question) {
+  return localFallbackAnswerFromResults(await searchKnowledgeAsync(question, 8));
+}
+
+function localFallbackAnswerFromResults(results) {
   const parts = [];
 
   if (results.spirits.length) {

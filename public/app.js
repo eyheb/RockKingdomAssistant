@@ -9,6 +9,7 @@ const shinyOptions = [
   { value: "yes", label: "有异色" },
   { value: "no", label: "没异色" }
 ];
+const ownerStorageKey = "rock-assistant-community-user-id";
 
 const viewTitles = {
   assistant: "助手问答",
@@ -39,6 +40,10 @@ const state = {
     sort: "number"
   },
   selectedSpiritUrl: ""
+  ,
+  community: { users: [], entries: [], updatedAt: "" },
+  communityFilter: "",
+  currentUserId: localStorage.getItem(ownerStorageKey) || ""
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -72,7 +77,28 @@ const elements = {
   detailView: $("#detailView"),
   detailContent: $("#detailContent"),
   groupGrid: $("#groupGrid"),
-  exchangeList: $("#exchangeList"),
+  communityUserForm: $("#communityUserForm"),
+  communityUserName: $("#communityUserName"),
+  communityUserMeta: $("#communityUserMeta"),
+  communityEntryForm: $("#communityEntryForm"),
+  entryId: $("#entryId"),
+  entrySpirit: $("#entrySpirit"),
+  entryGender: $("#entryGender"),
+  entryNature: $("#entryNature"),
+  entryLevel: $("#entryLevel"),
+  entryEggGroups: $("#entryEggGroups"),
+  entryHp: $("#entryHp"),
+  entryAttack: $("#entryAttack"),
+  entryMagicAttack: $("#entryMagicAttack"),
+  entryDefense: $("#entryDefense"),
+  entryMagicDefense: $("#entryMagicDefense"),
+  entrySpeed: $("#entrySpeed"),
+  entryNote: $("#entryNote"),
+  entryReset: $("#entryReset"),
+  exchangeFilter: $("#exchangeFilter"),
+  exchangeRefresh: $("#exchangeRefresh"),
+  exchangeTableBody: $("#exchangeTableBody"),
+  spiritNameList: $("#spiritNameList"),
   spiritCount: $("#spiritCount"),
   groupCount: $("#groupCount"),
   exchangeCount: $("#exchangeCount"),
@@ -95,6 +121,28 @@ function escapeHtml(value) {
 function tagsHtml(tags) {
   if (!tags?.length) return "";
   return `<div class="tags">${tags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}</div>`;
+}
+
+function splitList(value) {
+  return String(value || "")
+    .split(/[,\s，、/]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function currentUser() {
+  return state.community.users.find((user) => user.id === state.currentUserId) || null;
+}
+
+function statText(stats = {}) {
+  return [
+    stats.hp ? `生${stats.hp}` : "",
+    stats.attack ? `物${stats.attack}` : "",
+    stats.magicAttack ? `魔${stats.magicAttack}` : "",
+    stats.defense ? `物防${stats.defense}` : "",
+    stats.magicDefense ? `魔防${stats.magicDefense}` : "",
+    stats.speed ? `速${stats.speed}` : ""
+  ].filter(Boolean).join(" / ");
 }
 
 function normalize(value) {
@@ -192,6 +240,7 @@ function renderDataViews() {
 
   renderDexControls();
   renderDexGrid();
+  renderCommunityExchange();
 
   elements.groupGrid.innerHTML = groups
     .map(
@@ -204,19 +253,6 @@ function renderDataViews() {
       `
     )
     .join("");
-
-  elements.exchangeList.innerHTML = exchange.length
-    ? exchange
-        .map(
-          (item) => `
-            <article class="exchange-card">
-              <strong>${escapeHtml(item.id)} · ${escapeHtml(item.spirit)}</strong>
-              <p>${escapeHtml([item.gender, item.eggGroups.join(" / "), item.nature, item.note].filter(Boolean).join(" · "))}</p>
-            </article>
-          `
-        )
-        .join("")
-    : `<p class="empty">当前 Excel 录入表里还没有更多交换记录。</p>`;
 
   elements.groupGrid.querySelectorAll("button[data-group]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -240,11 +276,139 @@ function getEggGroupsBySpirit() {
 
 function getExchangeBySpirit() {
   const map = new Map();
-  state.data.exchange.forEach((item) => {
+  getAllExchangeEntries().forEach((item) => {
     if (!map.has(item.spirit)) map.set(item.spirit, []);
     map.get(item.spirit).push(item);
   });
   return map;
+}
+
+function getAllExchangeEntries() {
+  return state.community.entries?.length ? state.community.entries : state.data.exchange;
+}
+
+function getSpiritByName(name) {
+  return (state.data.spirits || []).find((item) => item.name === name) || null;
+}
+
+async function loadCommunityExchange() {
+  const response = await fetch("/api/community-exchange");
+  if (!response.ok) throw new Error(`交换表读取失败：${response.status}`);
+  state.community = await response.json();
+  if (!currentUser() && state.community.users?.[0] && !state.currentUserId) {
+    state.currentUserId = "";
+  }
+  renderCommunityExchange();
+}
+
+async function saveCommunity(payload) {
+  const response = await fetch("/api/community-exchange", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || `交换表保存失败：${response.status}`);
+  state.community = data;
+  state.data.exchange = data.entries || [];
+  renderDataViews();
+  await runSearch(elements.lookup.value);
+}
+
+function populateSpiritList() {
+  const names = [...new Set([...(state.data.biligameDex || []).map((item) => item.name), ...(state.data.spirits || []).map((item) => item.name)])]
+    .sort((a, b) => a.localeCompare(b, "zh-Hans-CN"));
+  elements.spiritNameList.innerHTML = names.map((name) => `<option value="${escapeHtml(name)}"></option>`).join("");
+}
+
+function renderCommunityExchange() {
+  if (!elements.exchangeTableBody) return;
+  const user = currentUser();
+  const entries = getAllExchangeEntries();
+  const query = normalize(state.communityFilter);
+  const filtered = entries.filter((entry) => {
+    if (!query) return true;
+    return [
+      entry.ownerName,
+      entry.id,
+      entry.spirit,
+      entry.gender,
+      entry.nature,
+      entry.level,
+      entry.note,
+      ...(entry.eggGroups || []),
+      ...Object.values(entry.stats || {})
+    ].some((field) => normalize(field).includes(query));
+  });
+
+  elements.exchangeCount.textContent = `${entries.length} 记录`;
+  elements.exchangeMeta.textContent = user
+    ? `${user.name} · ${entries.length} 条共享记录`
+    : `${entries.length} 条共享记录 · 先创建用户名再录入`;
+  elements.communityUserName.value = user?.name || "";
+  elements.communityUserMeta.textContent = user ? `当前用户：${user.name}` : "未创建用户名";
+
+  elements.exchangeTableBody.innerHTML = filtered.length
+    ? filtered.map((entry) => {
+        const canEdit = user && entry.ownerId === user.id;
+        return `
+          <tr>
+            <td>${escapeHtml(entry.ownerName || entry.id || "")}</td>
+            <td><strong>${escapeHtml(entry.spirit)}</strong></td>
+            <td>${escapeHtml(entry.gender || "-")}</td>
+            <td>${escapeHtml(entry.nature || "-")}</td>
+            <td>${escapeHtml(entry.level || "-")}</td>
+            <td>${tagsHtml(entry.eggGroups || [])}</td>
+            <td>${escapeHtml(statText(entry.stats) || "-")}</td>
+            <td>${escapeHtml(entry.note || "")}</td>
+            <td>
+              <div class="row-actions">
+                ${canEdit ? `<button type="button" data-edit-entry="${escapeHtml(entry.id)}">编辑</button><button type="button" data-delete-entry="${escapeHtml(entry.id)}">删除</button>` : `<span class="muted-action">只读</span>`}
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join("")
+    : `<tr><td colspan="9"><p class="empty">没有匹配记录。</p></td></tr>`;
+}
+
+function syncEggGroupsFromSpirit() {
+  const spirit = getSpiritByName(elements.entrySpirit.value);
+  if (spirit && !elements.entryEggGroups.value.trim()) {
+    elements.entryEggGroups.value = spirit.eggGroups.join("、");
+  }
+}
+
+function resetEntryForm() {
+  elements.entryId.value = "";
+  elements.entrySpirit.value = "";
+  elements.entryGender.value = "";
+  elements.entryNature.value = "";
+  elements.entryLevel.value = "";
+  elements.entryEggGroups.value = "";
+  elements.entryHp.value = "";
+  elements.entryAttack.value = "";
+  elements.entryMagicAttack.value = "";
+  elements.entryDefense.value = "";
+  elements.entryMagicDefense.value = "";
+  elements.entrySpeed.value = "";
+  elements.entryNote.value = "";
+}
+
+function fillEntryForm(entry) {
+  elements.entryId.value = entry.id || "";
+  elements.entrySpirit.value = entry.spirit || "";
+  elements.entryGender.value = entry.gender || "";
+  elements.entryNature.value = entry.nature || "";
+  elements.entryLevel.value = entry.level || "";
+  elements.entryEggGroups.value = (entry.eggGroups || []).join("、");
+  elements.entryHp.value = entry.stats?.hp || "";
+  elements.entryAttack.value = entry.stats?.attack || "";
+  elements.entryMagicAttack.value = entry.stats?.magicAttack || "";
+  elements.entryDefense.value = entry.stats?.defense || "";
+  elements.entryMagicDefense.value = entry.stats?.magicDefense || "";
+  elements.entrySpeed.value = entry.stats?.speed || "";
+  elements.entryNote.value = entry.note || "";
 }
 
 function getDetailsByUrl() {
@@ -367,9 +531,9 @@ function renderDexGrid() {
         : "详情待导入";
       return `
         <article class="dex-card" data-wiki-url="${escapeHtml(item.wikiUrl)}">
-          <a class="dex-art" href="${escapeHtml(item.wikiUrl)}" target="_blank" rel="noreferrer">
+          <button class="dex-art" type="button" data-wiki-url="${escapeHtml(item.wikiUrl)}" aria-label="查看${escapeHtml(item.name)}详情">
             <img src="${escapeHtml(item.thumbnailUrl || item.imageUrl)}" alt="${escapeHtml(item.name)}" loading="lazy" />
-          </a>
+          </button>
           <div class="dex-card-body">
             <div class="dex-card-title">
               <span>NO.${escapeHtml(item.number)}</span>
@@ -420,14 +584,20 @@ function renderDetailView(wikiUrl) {
   const detail = getDetailsByUrl().get(wikiUrl);
   const eggGroups = getEggGroupsBySpirit().get(dex?.name) || [];
 
-  if (!dex) return;
+  if (!dex) {
+    window.open(wikiUrl, "_blank", "noopener,noreferrer");
+    return;
+  }
   state.selectedSpiritUrl = wikiUrl;
   setView("detail");
 
   if (!detail) {
     elements.detailContent.innerHTML = `
       <div class="detail-empty">
-        <button class="link-button" id="backToDex" type="button">返回图鉴</button>
+        <div class="detail-actions">
+          <button class="link-button" id="backToDex" type="button">返回图鉴</button>
+          <a class="source-button" href="${escapeHtml(dex.wikiUrl)}" target="_blank" rel="noreferrer">来源页面</a>
+        </div>
         <p>这只精灵还没有导入详情数据。</p>
       </div>
     `;
@@ -437,7 +607,10 @@ function renderDetailView(wikiUrl) {
 
   elements.detailContent.innerHTML = `
     <div class="detail-hero">
-      <button class="link-button" id="backToDex" type="button">返回图鉴</button>
+      <div class="detail-actions">
+        <button class="link-button" id="backToDex" type="button">返回图鉴</button>
+        <a class="source-button" href="${escapeHtml(dex.wikiUrl)}" target="_blank" rel="noreferrer">来源页面</a>
+      </div>
       <div class="detail-hero-main">
         <img src="${escapeHtml(dex.thumbnailUrl || dex.imageUrl)}" alt="${escapeHtml(dex.name)}" />
         <div>
@@ -482,11 +655,11 @@ function renderDetailView(wikiUrl) {
         <div class="evolution-list">
           ${detail.evolution?.chain?.length
             ? detail.evolution.chain.map((item, index) => `
-                <a href="${escapeHtml(item.wikiUrl)}" target="_blank" rel="noreferrer">
+                <button type="button" data-wiki-url="${escapeHtml(item.wikiUrl)}">
                   <img src="${escapeHtml(item.thumbnailUrl || item.imageUrl)}" alt="${escapeHtml(item.name)}" />
                   <span>${escapeHtml(item.name)}</span>
                   ${detail.evolution.levels?.[index - 1] ? `<small>Lv.${escapeHtml(detail.evolution.levels[index - 1])}</small>` : ""}
-                </a>
+                </button>
               `).join("")
             : `<p class="empty">暂无进化链资料。</p>`}
         </div>
@@ -517,6 +690,11 @@ function renderDetailView(wikiUrl) {
     </div>
   `;
   $("#backToDex").addEventListener("click", () => setView("spirits"));
+  elements.detailContent.querySelectorAll(".evolution-list button[data-wiki-url]").forEach((button) => {
+    button.addEventListener("click", () => {
+      renderDetailView(button.dataset.wikiUrl);
+    });
+  });
 }
 
 function toggleDexFilter(group, value) {
@@ -646,6 +824,72 @@ function wireEvents() {
     renderDetailView(button.dataset.wikiUrl);
   });
 
+  elements.communityUserForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const name = elements.communityUserName.value.trim();
+    if (!name) return;
+    const id = state.currentUserId || `user-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    await saveCommunity({ action: "saveUser", user: { id, name } });
+    state.currentUserId = id;
+    localStorage.setItem(ownerStorageKey, id);
+    renderCommunityExchange();
+  });
+
+  elements.entrySpirit.addEventListener("change", syncEggGroupsFromSpirit);
+  elements.entrySpirit.addEventListener("blur", syncEggGroupsFromSpirit);
+  elements.entryReset.addEventListener("click", resetEntryForm);
+  elements.exchangeFilter.addEventListener("input", () => {
+    state.communityFilter = elements.exchangeFilter.value;
+    renderCommunityExchange();
+  });
+  elements.exchangeRefresh.addEventListener("click", async () => {
+    await loadCommunityExchange();
+    await runSearch(elements.lookup.value);
+  });
+  elements.communityEntryForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const user = currentUser();
+    if (!user) {
+      elements.communityUserMeta.textContent = "请先保存用户名";
+      return;
+    }
+    const entry = {
+      id: elements.entryId.value,
+      ownerId: user.id,
+      spirit: elements.entrySpirit.value,
+      gender: elements.entryGender.value,
+      nature: elements.entryNature.value,
+      level: elements.entryLevel.value,
+      eggGroups: splitList(elements.entryEggGroups.value),
+      stats: {
+        hp: elements.entryHp.value,
+        attack: elements.entryAttack.value,
+        magicAttack: elements.entryMagicAttack.value,
+        defense: elements.entryDefense.value,
+        magicDefense: elements.entryMagicDefense.value,
+        speed: elements.entrySpeed.value
+      },
+      note: elements.entryNote.value
+    };
+    await saveCommunity({ action: "saveEntry", entry });
+    resetEntryForm();
+  });
+  elements.exchangeTableBody.addEventListener("click", async (event) => {
+    const editButton = event.target.closest("button[data-edit-entry]");
+    const deleteButton = event.target.closest("button[data-delete-entry]");
+    if (editButton) {
+      const entry = getAllExchangeEntries().find((item) => item.id === editButton.dataset.editEntry);
+      if (entry) fillEntryForm(entry);
+      return;
+    }
+    if (deleteButton) {
+      const user = currentUser();
+      if (!user) return;
+      await saveCommunity({ action: "deleteEntry", id: deleteButton.dataset.deleteEntry, ownerId: user.id });
+      resetEntryForm();
+    }
+  });
+
   elements.chatForm.addEventListener("submit", (event) => {
     event.preventDefault();
     submitChat();
@@ -667,4 +911,6 @@ function wireEvents() {
 wireEvents();
 renderMessages();
 await loadData();
+populateSpiritList();
+await loadCommunityExchange();
 await runSearch("");

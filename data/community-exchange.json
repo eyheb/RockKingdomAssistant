@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "updatedAt": "2026-05-08T00:00:00.000Z",
+  "users": [
+    {
+      "id": "legacy-laoma",
+      "name": "老马",
+      "createdAt": "2026-05-08T00:00:00.000Z",
+      "updatedAt": "2026-05-08T00:00:00.000Z"
+    }
+  ],
+  "entries": [
+    {
+      "id": "legacy-laoma-yilanyalong",
+      "ownerId": "legacy-laoma",
+      "ownerName": "老马",
+      "spirit": "伊兰亚龙",
+      "gender": "公",
+      "nature": "固执",
+      "level": "",
+      "eggGroups": ["龙组"],
+      "stats": {
+        "hp": "",
+        "attack": "",
+        "magicAttack": "",
+        "defense": "",
+        "magicDefense": "",
+        "speed": ""
+      },
+      "note": "",
+      "createdAt": "2026-05-08T00:00:00.000Z",
+      "updatedAt": "2026-05-08T00:00:00.000Z"
+    },
+    {
+      "id": "legacy-laoma-molimao",
+      "ownerId": "legacy-laoma",
+      "ownerName": "老马",
+      "spirit": "魔力猫",
+      "gender": "母",
+      "nature": "胆小",
+      "level": "",
+      "eggGroups": ["拟人组", "动物组"],
+      "stats": {
+        "hp": "",
+        "attack": "",
+        "magicAttack": "",
+        "defense": "",
+        "magicDefense": "",
+        "speed": ""
+      },
+      "note": "",
+      "createdAt": "2026-05-08T00:00:00.000Z",
+      "updatedAt": "2026-05-08T00:00:00.000Z"
+    }
+  ]
+}
