@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: rock-virtual-assistant
+    name: rock-kingdom-assistant
     runtime: node
     plan: free
     buildCommand: npm install && npm run build

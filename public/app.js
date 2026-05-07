@@ -9,7 +9,11 @@ const shinyOptions = [
   { value: "yes", label: "有异色" },
   { value: "no", label: "没异色" }
 ];
-const ownerStorageKey = "rock-assistant-community-user-id";
+const legacyOwnerStorageKey = "rock-assistant-community-user-id";
+const ownerStorageKey = "rock-kingdom-assistant-community-user-id";
+if (!localStorage.getItem(ownerStorageKey) && localStorage.getItem(legacyOwnerStorageKey)) {
+  localStorage.setItem(ownerStorageKey, localStorage.getItem(legacyOwnerStorageKey));
+}
 
 const viewTitles = {
   assistant: "助手问答",

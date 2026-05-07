@@ -51,7 +51,7 @@ async function readGithubStore(config) {
     headers: {
       accept: "application/vnd.github+json",
       authorization: `Bearer ${config.token}`,
-      "user-agent": "rock-virtual-assistant"
+      "user-agent": "rock-kingdom-assistant"
     }
   });
 
@@ -84,7 +84,7 @@ async function writeGithubStore(config, store, sha) {
       accept: "application/vnd.github+json",
       authorization: `Bearer ${config.token}`,
       "content-type": "application/json",
-      "user-agent": "rock-virtual-assistant"
+      "user-agent": "rock-kingdom-assistant"
     },
     body: JSON.stringify(body)
   });

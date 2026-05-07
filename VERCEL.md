@@ -5,7 +5,7 @@ Use this path if Render asks for a payment card.
 ## Import
 
 1. Open https://vercel.com/new
-2. Import `eyheb/LockKingdomAssistant`
+2. Import `eyheb/RockKingdomAssistant`
 3. Keep the root directory as the repository root.
 4. Vercel reads `vercel.json` automatically.
 

@@ -4,7 +4,7 @@
 
 ## 方案 A：Render
 
-1. 把 `agent/rock_virtual_assistant` 推到 GitHub 仓库。
+1. 把 `agent/rock_kingdom_assistant` 推到 GitHub 仓库。
 2. 在 Render 新建 `Web Service`。
 3. 选择仓库和目录。
 4. 设置：
@@ -29,7 +29,7 @@ Render 会给一个 `https://xxx.onrender.com` 链接，可以直接发给朋友
 
 1. 新建 Railway Project。
 2. 连接 GitHub 仓库。
-3. 设置 Root Directory 为 `agent/rock_virtual_assistant`。
+3. 设置 Root Directory 为 `agent/rock_kingdom_assistant`。
 4. 添加同样的环境变量。
 5. Railway 会自动执行 `npm start`，也可以手动设置 Start Command。
 
@@ -70,8 +70,8 @@ Cloudflare Tunnel 通常不会要求朋友输入你的 IP。它会生成一个 `
 也可以用 Docker 部署：
 
 ```bash
-docker build -t rock-virtual-assistant .
-docker run -p 3000:3000 --env-file .env rock-virtual-assistant
+docker build -t rock-kingdom-assistant .
+docker run -p 3000:3000 --env-file .env rock-kingdom-assistant
 ```
 
 ## 更新数据

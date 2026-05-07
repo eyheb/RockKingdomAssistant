@@ -54,7 +54,7 @@ try {
   if (!page.includes("洛克王国虚拟助手")) {
     throw new Error("Page smoke test failed: title not found");
   }
-  if (!page.includes("Rock Assistant") || !page.includes("surface-card") || !page.includes("data-view=\"groups\"")) {
+  if (!page.includes("Rock Kingdom Assistant") || !page.includes("surface-card") || !page.includes("data-view=\"groups\"")) {
     throw new Error("Page smoke test failed: workspace shell markers not found");
   }
 
