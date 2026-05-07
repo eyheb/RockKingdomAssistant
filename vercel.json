@@ -3,6 +3,7 @@
   "framework": null,
   "installCommand": "npm ci",
   "buildCommand": "npm run build",
+  "regions": ["hkg1"],
   "outputDirectory": "public",
   "functions": {
     "api/*.js": {
