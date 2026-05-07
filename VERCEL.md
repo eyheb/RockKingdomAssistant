@@ -27,11 +27,11 @@ For the shared exchange table to persist edits on Vercel, also add:
 ```dotenv
 COMMUNITY_GITHUB_REPO=eyheb/RockKingdomAssistant
 COMMUNITY_GITHUB_TOKEN=your_contents_read_write_token
-COMMUNITY_GITHUB_BRANCH=main
+COMMUNITY_GITHUB_BRANCH=community-data
 COMMUNITY_GITHUB_PATH=data/community-exchange.json
 ```
 
-Create the token in GitHub with repository Contents read/write permission. With these variables present, every table save/delete writes the latest `data/community-exchange.json` back to GitHub, so later visitors read the updated table.
+Create the token in GitHub with repository Contents read/write permission. With these variables present, every table save/delete writes the latest `data/community-exchange.json` back to the `community-data` branch, so later visitors read the updated table without creating commits on `main`.
 
 ## Build Settings
 

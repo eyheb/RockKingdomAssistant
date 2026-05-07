@@ -41,7 +41,7 @@ function githubConfig() {
   return {
     repo,
     token,
-    branch: process.env.COMMUNITY_GITHUB_BRANCH?.trim() || "main",
+    branch: process.env.COMMUNITY_GITHUB_BRANCH?.trim() || "community-data",
     path: process.env.COMMUNITY_GITHUB_PATH?.trim() || "data/community-exchange.json"
   };
 }
