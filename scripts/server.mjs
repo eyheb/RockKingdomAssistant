@@ -2,7 +2,7 @@ import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { formatResultsForPrompt, loadData, localFallbackAnswer, searchKnowledge } from "./data-store.mjs";
+import { callModel as callSharedModel, loadData, searchKnowledge } from "./api-shared.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const projectRoot = path.resolve(path.dirname(__filename), "..");
@@ -171,7 +171,7 @@ export function createServer() {
           return;
         }
 
-        sendJson(response, 200, await callModel(message, Array.isArray(body.history) ? body.history : []));
+        sendJson(response, 200, await callSharedModel(message, Array.isArray(body.history) ? body.history : []));
         return;
       }
 
