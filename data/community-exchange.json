@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updatedAt": "2026-05-07T20:01:15.314Z",
+  "updatedAt": "2026-05-07T20:02:23.515Z",
   "users": [],
   "entries": [
     {
@@ -52,7 +52,7 @@
       "id": "entry-movwvgft-e7hxvj",
       "player": "eyheb",
       "spirit": "罗隐",
-      "gender": "",
+      "gender": "公",
       "nature": "固执",
       "level": "",
       "eggGroups": [
@@ -69,7 +69,7 @@
       },
       "note": "",
       "createdAt": "2026-05-07T20:01:15.314Z",
-      "updatedAt": "2026-05-07T20:01:15.314Z"
+      "updatedAt": "2026-05-07T20:02:23.515Z"
     }
   ]
 }
