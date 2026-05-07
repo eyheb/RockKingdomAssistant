@@ -1,4 +1,7 @@
 const starters = ["地系什么技能威力最高？", "迪莫的种族值和技能有哪些？", "龙组有哪些可以交换的精灵？", "固执性格的交换记录有哪些？"];
+const initialAssistantMessage = { role: "assistant", content: "资料已就绪。" };
+const maxConversations = 6;
+const conversationStorageKey = "rock-assistant-temp-conversations";
 const stageOrder = ["Ⅰ阶", "Ⅱ阶", "最终形态"];
 const typeOrder = ["普通", "草", "火", "水", "光", "地", "冰", "龙", "电", "毒", "幽", "武", "翼", "萌", "幻", "恶", "机械", "虫"];
 const specialOptions = [
@@ -21,12 +24,9 @@ const state = {
   activeView: "assistant",
   data: { spirits: [], groups: [], exchange: [], biligameDex: [], biligameDetails: [] },
   latestResults: { spirits: [], dex: [], groups: [], exchange: [], skills: [], insights: {}, totals: { spirits: 0, dex: 0, details: 0, groups: 0, exchange: 0, skills: 0 } },
-  messages: [
-    {
-      role: "assistant",
-      content: "资料已就绪。"
-    }
-  ],
+  messages: [{ ...initialAssistantMessage }],
+  conversations: [],
+  activeConversationId: "",
   chatting: false,
   dexFilters: {
     query: "",
@@ -56,6 +56,8 @@ const elements = {
   sendBtn: $("#sendBtn"),
   messages: $("#messages"),
   status: $("#status"),
+  conversationList: $("#conversationList"),
+  conversationCount: $("#conversationCount"),
   quickList: $("#quickList"),
   resultMeta: $("#resultMeta"),
   spirits: $("#spirits"),
@@ -163,6 +165,133 @@ function resultCard(title, body, tags = []) {
   `;
 }
 
+function createConversation(messages = [{ ...initialAssistantMessage }]) {
+  return {
+    id: `chat-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    title: "新对话",
+    messages: messages.map((message) => ({ ...message })),
+    updatedAt: Date.now()
+  };
+}
+
+function sanitizeConversation(rawConversation) {
+  const messages = Array.isArray(rawConversation?.messages)
+    ? rawConversation.messages
+        .filter((message) => ["user", "assistant"].includes(message?.role) && typeof message.content === "string")
+        .map((message) => ({ role: message.role, content: message.content.slice(0, 12000) }))
+    : [];
+
+  return {
+    id: String(rawConversation?.id || `chat-${Date.now()}-${Math.random().toString(16).slice(2)}`),
+    title: String(rawConversation?.title || "新对话").slice(0, 30),
+    messages: messages.length ? messages : [{ ...initialAssistantMessage }],
+    updatedAt: Number(rawConversation?.updatedAt || Date.now())
+  };
+}
+
+function loadStoredConversations() {
+  try {
+    const parsed = JSON.parse(sessionStorage.getItem(conversationStorageKey) || "{}");
+    const conversations = Array.isArray(parsed.conversations)
+      ? parsed.conversations.slice(0, maxConversations).map(sanitizeConversation)
+      : [];
+    return {
+      conversations,
+      activeConversationId: String(parsed.activeConversationId || "")
+    };
+  } catch {
+    return { conversations: [], activeConversationId: "" };
+  }
+}
+
+function persistConversations() {
+  try {
+    sessionStorage.setItem(
+      conversationStorageKey,
+      JSON.stringify({
+        activeConversationId: state.activeConversationId,
+        conversations: state.conversations.slice(0, maxConversations)
+      })
+    );
+  } catch {
+    // sessionStorage may be unavailable in privacy modes; in-memory switching still works.
+  }
+}
+
+function summarizeConversation(messages) {
+  const firstUserMessage = messages.find((message) => message.role === "user")?.content || "";
+  return firstUserMessage ? firstUserMessage.slice(0, 18) : "新对话";
+}
+
+function syncActiveConversation() {
+  const active = state.conversations.find((conversation) => conversation.id === state.activeConversationId);
+  if (!active) return;
+  active.messages = state.messages.map((message) => ({ ...message }));
+  active.title = summarizeConversation(active.messages);
+  active.updatedAt = Date.now();
+  persistConversations();
+}
+
+function renderConversationList() {
+  elements.conversationCount.textContent = String(state.conversations.length);
+  elements.conversationList.innerHTML = state.conversations
+    .map((conversation) => {
+      const isActive = conversation.id === state.activeConversationId;
+      const messageCount = conversation.messages.filter((message) => message.role === "user").length;
+      return `
+        <button class="conversation-item ${isActive ? "active" : ""}" type="button" data-conversation-id="${escapeHtml(conversation.id)}">
+          <span>${escapeHtml(conversation.title)}</span>
+          <small>${messageCount ? `${messageCount} 问` : "空白"}</small>
+        </button>
+      `;
+    })
+    .join("");
+}
+
+function openConversation(id) {
+  if (state.chatting && id !== state.activeConversationId) return;
+  syncActiveConversation();
+  const conversation = state.conversations.find((item) => item.id === id);
+  if (!conversation) return;
+  state.activeConversationId = conversation.id;
+  state.messages = conversation.messages.map((message) => ({ ...message }));
+  setView("assistant");
+  persistConversations();
+  renderConversationList();
+  renderMessages();
+}
+
+function startConversation(initialMessage = "新对话已开始。") {
+  syncActiveConversation();
+  const conversation = createConversation([{ role: "assistant", content: initialMessage }]);
+  state.conversations.unshift(conversation);
+  state.conversations = state.conversations.slice(0, maxConversations);
+  state.activeConversationId = conversation.id;
+  state.messages = conversation.messages.map((message) => ({ ...message }));
+  persistConversations();
+  renderConversationList();
+  renderMessages();
+  setView("assistant");
+}
+
+function initializeConversations() {
+  const stored = loadStoredConversations();
+  if (stored.conversations.length) {
+    state.conversations = stored.conversations;
+    state.activeConversationId = stored.conversations.some((conversation) => conversation.id === stored.activeConversationId)
+      ? stored.activeConversationId
+      : stored.conversations[0].id;
+    const active = state.conversations.find((conversation) => conversation.id === state.activeConversationId);
+    state.messages = active.messages.map((message) => ({ ...message }));
+  } else {
+    const first = createConversation(state.messages);
+    state.conversations = [first];
+    state.activeConversationId = first.id;
+    persistConversations();
+  }
+  renderConversationList();
+}
+
 function setView(view) {
   state.activeView = view;
   elements.viewTitle.textContent = viewTitles[view];
@@ -173,9 +302,23 @@ function setView(view) {
 }
 
 function renderMessages() {
-  elements.messages.innerHTML = state.messages
+  const visibleMessages = state.chatting
+    ? [...state.messages, { role: "assistant", content: "正在检索资料并组织回答", pending: true }]
+    : state.messages;
+  elements.messages.innerHTML = visibleMessages
     .map((message) => {
       const label = message.role === "user" ? "我" : "洛";
+      if (message.pending) {
+        return `
+          <div class="message assistant pending">
+            <div class="avatar">${label}</div>
+            <div class="bubble thinking-bubble" aria-live="polite">
+              <span>${escapeHtml(message.content)}</span>
+              <i></i><i></i><i></i>
+            </div>
+          </div>
+        `;
+      }
       const order = message.role === "user"
         ? `<div class="bubble">${escapeHtml(message.content)}</div><div class="avatar">${label}</div>`
         : `<div class="avatar">${label}</div><div class="bubble">${escapeHtml(message.content)}</div>`;
@@ -898,10 +1041,14 @@ async function submitChat(forcedMessage) {
 
   setView("assistant");
   state.messages.push({ role: "user", content: message });
+  syncActiveConversation();
+  renderConversationList();
   elements.chatInput.value = "";
   state.chatting = true;
   elements.status.textContent = "思考中";
+  elements.status.classList.add("is-thinking");
   elements.sendBtn.disabled = true;
+  elements.sendBtn.classList.add("is-loading");
   renderMessages();
   await runSearch(message);
 
@@ -924,13 +1071,19 @@ async function submitChat(forcedMessage) {
       elements.modelStatus.textContent = data.warning;
     }
     state.messages.push({ role: "assistant", content: data.answer || data.error || "这次没有拿到可用回答。" });
+    syncActiveConversation();
+    renderConversationList();
   } catch (error) {
     const detail = error?.message ? `（${error.message}）` : "";
     state.messages.push({ role: "assistant", content: `接口暂时不可用${detail}，可以先用右侧资料查询。` });
+    syncActiveConversation();
+    renderConversationList();
   } finally {
     state.chatting = false;
     elements.status.textContent = "就绪";
+    elements.status.classList.remove("is-thinking");
     elements.sendBtn.disabled = false;
+    elements.sendBtn.classList.remove("is-loading");
     renderMessages();
   }
 }
@@ -938,9 +1091,11 @@ async function submitChat(forcedMessage) {
 function wireEvents() {
   $$(".nav-item").forEach((button) => button.addEventListener("click", () => setView(button.dataset.view)));
   $("#newChat").addEventListener("click", () => {
-    state.messages = [{ role: "assistant", content: "新对话已开始。" }];
-    renderMessages();
-    setView("assistant");
+    if (!state.chatting) startConversation();
+  });
+  elements.conversationList.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-conversation-id]");
+    if (button) openConversation(button.dataset.conversationId);
   });
 
   let searchTimer;
@@ -1101,6 +1256,7 @@ function wireEvents() {
   });
 }
 
+initializeConversations();
 wireEvents();
 renderMessages();
 await loadData();
