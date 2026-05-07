@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updatedAt": "2026-05-08T04:10:00.000Z",
+  "updatedAt": "2026-05-07T20:51:54.834Z",
   "users": [],
   "entries": [
     {
@@ -495,6 +495,29 @@
       "note": "",
       "createdAt": "2026-05-08T04:10:00.000Z",
       "updatedAt": "2026-05-08T04:10:00.000Z"
+    },
+    {
+      "id": "entry-movyokml-vp2cmn",
+      "player": "张",
+      "spirit": "罗隐",
+      "gender": "公",
+      "nature": "固执（+物攻 -魔攻）",
+      "level": "",
+      "eggGroups": [
+        "大地组",
+        "巨灵组"
+      ],
+      "stats": {
+        "hp": "",
+        "attack": "",
+        "magicAttack": "",
+        "defense": "",
+        "magicDefense": "",
+        "speed": ""
+      },
+      "note": "",
+      "createdAt": "2026-05-07T20:51:54.834Z",
+      "updatedAt": "2026-05-07T20:51:54.834Z"
     }
   ]
 }
