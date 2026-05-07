@@ -227,10 +227,17 @@ async function submitChat(forcedMessage) {
       })
     });
     const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || `接口返回 ${response.status}`);
+    }
     elements.modelStatus.textContent = data.mode === "llm" ? "模型回答已启用" : "本地摘要模式";
+    if (data.warning) {
+      elements.modelStatus.textContent = data.warning;
+    }
     state.messages.push({ role: "assistant", content: data.answer || data.error || "这次没有拿到可用回答。" });
-  } catch {
-    state.messages.push({ role: "assistant", content: "接口暂时不可用，可以先用右侧资料查询。" });
+  } catch (error) {
+    const detail = error?.message ? `（${error.message}）` : "";
+    state.messages.push({ role: "assistant", content: `接口暂时不可用${detail}，可以先用右侧资料查询。` });
   } finally {
     state.chatting = false;
     elements.status.textContent = "就绪";

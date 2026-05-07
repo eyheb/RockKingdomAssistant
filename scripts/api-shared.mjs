@@ -44,6 +44,12 @@ export async function readJsonBody(request) {
   }
 }
 
+function getModelTimeoutMs() {
+  const rawTimeout = Number(process.env.LLM_TIMEOUT_MS || 7500);
+  if (!Number.isFinite(rawTimeout)) return 7500;
+  return Math.max(1000, Math.min(rawTimeout, 9000));
+}
+
 export async function callModel(message, history = []) {
   const apiKey = process.env.LLM_API_KEY?.trim();
   if (!apiKey) {
@@ -54,33 +60,47 @@ export async function callModel(message, history = []) {
   const model = process.env.LLM_MODEL?.trim() || "gpt-4o-mini";
   const results = searchKnowledge(message, 10);
   const context = formatResultsForPrompt(results);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), getModelTimeoutMs());
 
-  const upstream = await fetch(`${baseUrl.replace(/\/$/, "")}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model,
-      temperature: 0.3,
-      messages: [
-        {
-          role: "system",
-          content:
-            "你是一个洛克王国世界朋友群使用的虚拟助手。优先根据提供的本地资料回答；资料不足时明确说明不确定，并建议用户补充数据。回答用简洁中文。"
-        },
-        ...history.slice(-6).map((item) => ({
-          role: item.role === "assistant" ? "assistant" : "user",
-          content: String(item.content || "")
-        })),
-        {
-          role: "user",
-          content: `用户问题：${message}\n\n本地检索资料：\n${context}`
-        }
-      ]
-    })
-  });
+  let upstream;
+  try {
+    upstream = await fetch(`${baseUrl.replace(/\/$/, "")}/chat/completions`, {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model,
+        temperature: 0.3,
+        messages: [
+          {
+            role: "system",
+            content:
+              "你是一个洛克王国世界朋友群使用的虚拟助手。优先根据提供的本地资料回答；资料不足时明确说明不确定，并建议用户补充数据。回答用简洁中文。"
+          },
+          ...history.slice(-4).map((item) => ({
+            role: item.role === "assistant" ? "assistant" : "user",
+            content: String(item.content || "").slice(0, 800)
+          })),
+          {
+            role: "user",
+            content: `用户问题：${message}\n\n本地检索资料：\n${context}`
+          }
+        ]
+      })
+    });
+  } catch (error) {
+    return {
+      answer: localFallbackAnswer(message),
+      mode: "local",
+      warning: error?.name === "AbortError" ? "模型接口响应超时，已改用本地资料摘要。" : "模型接口暂时不可达，已改用本地资料摘要。"
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!upstream.ok) {
     const errorText = await upstream.text();
