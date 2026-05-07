@@ -1,0 +1,40 @@
+# 洛克王国虚拟助手
+
+轻量版在线工具，把现有交换数据库和蛋组资料变成一个可部署、可聊天、可检索的网站。
+
+当前版本使用纯 Node.js + 静态页面，适合先给几个朋友试用。
+
+## 功能
+
+- 从 `materials/raw/洛克王国世界_交换数据库.xlsx` 生成交换数据库。
+- 从 `materials/raw/蛋组查询.html` 生成蛋组资料。
+- 提供 `GET /api/search`、`GET /api/data`、`POST /api/chat`。
+- 未配置模型时使用本地资料摘要；配置模型后会把检索结果作为上下文传给模型。
+
+## 本地启动
+
+```powershell
+npm install
+npm run build
+npm start
+```
+
+默认地址：
+
+```text
+http://localhost:3000/?v=20260507-2
+```
+
+## 模型配置
+
+复制 `.env.example` 为 `.env`，填入：
+
+```dotenv
+LLM_API_KEY=你的 key
+LLM_BASE_URL=https://api.openai.com/v1
+LLM_MODEL=gpt-4o-mini
+```
+
+## 部署
+
+见 `DEPLOY.md`。推荐先用 Render/Railway 获取一个稳定链接；临时给朋友试用可用 ngrok 或 Cloudflare Tunnel。

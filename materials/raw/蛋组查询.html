@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>蛋组查询 · 洛克王国：世界</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: #0f1117;
+    color: #e0e0e8;
+    min-height: 100vh;
+    padding: 2rem 1rem;
+  }
+
+  h1 {
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: #f0f0f8;
+    margin-bottom: 0.25rem;
+    letter-spacing: 0.02em;
+  }
+
+  .subtitle {
+    font-size: 0.8rem;
+    color: #666;
+    margin-bottom: 1.5rem;
+  }
+
+  .container { max-width: 860px; margin: 0 auto; }
+
+  /* 搜索框 */
+  .search-wrap {
+    position: relative;
+    margin-bottom: 1.25rem;
+  }
+  .search-wrap svg {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #555;
+    pointer-events: none;
+  }
+  #search {
+    width: 100%;
+    background: #1a1d27;
+    border: 1px solid #2a2d3a;
+    border-radius: 10px;
+    padding: 10px 12px 10px 38px;
+    font-size: 0.9rem;
+    color: #e0e0e8;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  #search:focus { border-color: #4a6fa5; }
+  #search::placeholder { color: #444; }
+
+  /* 蛋组按钮区 */
+  .group-area {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin-bottom: 1rem;
+  }
+
+  .grp-btn {
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: 0.78rem;
+    cursor: pointer;
+    border: 1px solid #2a2d3a;
+    background: #1a1d27;
+    color: #aaa;
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .grp-btn:hover { border-color: #555; color: #ddd; }
+  .grp-btn.active { border-color: transparent; color: #fff; font-weight: 500; }
+
+  /* 模式 & 清除 */
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+  }
+  .ctrl-label { font-size: 0.75rem; color: #555; }
+  .mode-btn {
+    font-size: 0.75rem;
+    border: 1px solid #2a2d3a;
+    border-radius: 20px;
+    padding: 3px 12px;
+    cursor: pointer;
+    background: none;
+    color: #666;
+    transition: all 0.15s;
+  }
+  .mode-btn.active { background: #1a1d27; color: #ccc; border-color: #444; }
+  .clear-btn {
+    font-size: 0.75rem;
+    border: 1px solid #2a2d3a;
+    border-radius: 20px;
+    padding: 3px 12px;
+    cursor: pointer;
+    background: none;
+    color: #555;
+    transition: all 0.15s;
+    margin-left: auto;
+  }
+  .clear-btn:hover { color: #ccc; border-color: #555; }
+
+  /* 结果栏 */
+  .result-bar {
+    font-size: 0.78rem;
+    color: #555;
+    margin-bottom: 0.75rem;
+    min-height: 1.2em;
+  }
+
+  /* 精灵列表 */
+  #spirit-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 7px;
+  }
+
+  .spirit-card {
+    background: #1a1d27;
+    border: 1px solid #22253a;
+    border-radius: 8px;
+    padding: 9px 13px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    transition: border-color 0.15s;
+  }
+  .spirit-card:hover { border-color: #333; }
+
+  .spirit-name {
+    font-size: 0.82rem;
+    color: #d0d0e0;
+    flex-shrink: 0;
+    max-width: 45%;
+  }
+  .spirit-name mark {
+    background: rgba(255, 220, 80, 0.25);
+    color: #ffd84d;
+    border-radius: 2px;
+    padding: 0 1px;
+  }
+
+  .badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    justify-content: flex-end;
+  }
+  .badge {
+    font-size: 0.68rem;
+    padding: 2px 8px;
+    border-radius: 10px;
+    color: rgba(255,255,255,0.92);
+    white-space: nowrap;
+    cursor: pointer;
+    transition: opacity 0.1s, transform 0.1s;
+  }
+  .badge:hover { opacity: 0.85; transform: scale(0.97); }
+  .badge.selected-badge { outline: 1.5px solid rgba(255,255,255,0.4); }
+
+  .empty {
+    color: #444;
+    font-size: 0.85rem;
+    padding: 2rem 0;
+    text-align: center;
+    grid-column: 1 / -1;
+  }
+
+  .hint {
+    color: #333;
+    font-size: 0.85rem;
+    padding: 2rem 0;
+    text-align: center;
+    grid-column: 1 / -1;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>蛋组查询</h1>
+  <p class="subtitle">洛克王国：世界 · 蛋组数据（部分，基于截图录入）</p>
+
+  <div class="search-wrap">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+    <input id="search" type="text" placeholder="搜索精灵名称…" oninput="render()" autocomplete="off">
+  </div>
+
+  <div class="group-area" id="group-btns"></div>
+
+  <div class="controls">
+    <span class="ctrl-label">多选模式：</span>
+    <button class="mode-btn active" id="mode-or" onclick="setMode('or')">满足任一</button>
+    <button class="mode-btn" id="mode-and" onclick="setMode('and')">同时满足</button>
+    <button class="clear-btn" onclick="clearAll()">清除筛选</button>
+  </div>
+
+  <div class="result-bar" id="result-bar"></div>
+  <div id="spirit-list"></div>
+</div>
+
+<script>
+const GROUP_COLORS = {
+  "龙组":"#4A90D9","机械组":"#7B7B7B","海洋组":"#1A8FBB","魔力组":"#9B59B6",
+  "大地组":"#C0784B","软体组":"#D4537E","拟人组":"#E67E22","植物组":"#27AE60",
+  "妖精组":"#BA7517","动物组":"#16A085","天空组":"#2980B9","昆虫组":"#6A3DB7",
+  "两栖组":"#3D8B37","巨灵组":"#C0392B",
+};
+
+const RAW = [
+  ["伊兰亚龙","龙组"],["寂灭骨龙","龙组"],["翼龙","龙组"],["龙鱼","龙组"],
+  ["圣剑-X","机械组"],["声波缆塔","机械组"],["帕帕斯卡","机械组"],["权杖-V","机械组"],["波多西","机械组"],["立方人","机械组"],["贝古斯","机械组"],["迷迷箱怪","机械组"],
+  ["冰钻布鲁斯","海洋组"],["利灯鱼","海洋组"],["干棘盔","海洋组"],["圆号鱼","海洋组"],["彩蝶鲨","海洋组"],["抹茶布丁","海洋组"],["月亮砣（下弦的样子）","海洋组"],["海枝枝（碧蓝珊瑚）","海洋组"],["深蓝鲸","海洋组"],["混乱鱿彩","海洋组"],["琉璃水母","海洋组"],["里拉鳄","海洋组"],["闪电鳗鱼","海洋组"],["鳗尾兽","海洋组"],["龙鱼","海洋组"],
+  ["圣代甜甜","魔力组"],["夜枭","魔力组"],["巨灵石","魔力组"],["幻影灵菇","魔力组"],["幽冥眼（睁眼的样子）","魔力组"],["抹茶布丁","魔力组"],["梦悠悠（穿旧睡衣的样子）","魔力组"],["水灵","魔力组"],["火神","魔力组"],["荆棘电环","魔力组"],
+  ["仪式巨像","大地组"],["嗡波螺","大地组"],["嘟嘟锅","大地组"],["巨灵石","大地组"],["布克棱岩","大地组"],["晶石蜗（西瓜碧玺的样子）","大地组"],["石冠王蜥（本来的样子）","大地组"],["罗隐","大地组"],["记忆石","大地组"],
+  ["伊贝粉粉","软体组"],["冰钻布鲁斯","软体组"],["化蝶（平常的样子）","软体组"],["卡洛儿","软体组"],["圣代甜甜","软体组"],["小皮球","软体组"],["晶石蜗（西瓜碧玺的样子）","软体组"],["混乱鱿彩","软体组"],["琉璃水母","软体组"],
+  ["厉毒修萝","拟人组"],["古呱多","拟人组"],["影狸","拟人组"],["怒目丛猫","拟人组"],["朔夜伊芙","拟人组"],["流浪鼠","拟人组"],["火焰猿","拟人组"],["白发路路","拟人组"],["瞌睡王","拟人组"],["立方人","拟人组"],["绅士鸡","拟人组"],["花衣蝶","拟人组"],["雪巨人","拟人组"],["雪影娃娃","拟人组"],["魔力猫","拟人组"],["魔草巫灵","拟人组"],
+  ["九幽菇","植物组"],["伊贝粉粉","植物组"],["兽花蕾","植物组"],["奇丽花","植物组"],["幻影灵菇","植物组"],["幽影树","植物组"],["怖哭菇","植物组"],["格兰球","植物组"],["海枝枝（碧蓝珊瑚）","植物组"],["燃薪虫","植物组"],["菊花梨","植物组"],["蒲公英娃娃","植物组"],["蹦蹦花","植物组"],["风滚暮虫（金黄的样子）","植物组"],
+  ["仪式巨像","妖精组"],["卡洛儿","妖精组"],["古卷执政官","妖精组"],["叮叮恶魔","妖精组"],["嘟嘟锅","妖精组"],["圆号鱼","妖精组"],["小皮球","妖精组"],["幽影树","妖精组"],["捕尘长绒","妖精组"],["春花兔","妖精组"],["暮星辰","妖精组"],["朔夜伊芙","妖精组"],["格兰球","妖精组"],["梦悠悠（穿旧睡衣的样子）","妖精组"],["棋骑士","妖精组"],["游蛇魔使","妖精组"],["画间法师手","妖精组"],["粉耳星兔","妖精组"],["红绒十字","妖精组"],["裘卡","妖精组"],["迷迷箱怪","妖精组"],["酷拉","妖精组"],["里拉鳄","妖精组"],["雪影娃娃","妖精组"],["雪灵","妖精组"],["魔誉鸟","妖精组"],["魔草巫灵","妖精组"],["黑猫巫师","妖精组"],
+  ["卷胡巨獭","动物组"],["寒音蛇","动物组"],["尖嘴狐仙","动物组"],["巨嗤针鼹","动物组"],["影狸","动物组"],["怒目丛猫","动物组"],["恶魔狼","动物组"],["星光狮（星光能量的样子）","动物组"],["星光狮（月光能量的样子）","动物组"],["春花兔","动物组"],["月牙雪熊","动物组"],["梦想三三","动物组"],["流浪鼠","动物组"],["海豹船长","动物组"],["炽心勇狮","动物组"],["爵士鹿","动物组"],["猿牙猪","动物组"],["电球畔畔","动物组"],["白发路路","动物组"],["白金独角兽","动物组"],["皇家狮鹫（崖间地的样子）","动物组"],["皇家狮鹫（高山地的样子）","动物组"],["红绒十字","动物组"],["绒光优优","动物组"],["花影羚羊","动物组"],["裘卡","动物组"],["蹦床松鼠","动物组"],["遍地鼠（储水时的样子）","动物组"],["遍地鼠（枯水期的样子）","动物组"],["针叶巡林","动物组"],["雅丹鬃","动物组"],["音速犬","动物组"],["魔力猫","动物组"],["黑猫巫师","动物组"],
+  ["公平鸽","天空组"],["卷毛鸭","天空组"],["厉毒修萝","天空组"],["咔咔鸟","天空组"],["嘀咻鸟","天空组"],["岚鸟","天空组"],["帕帕斯卡","天空组"],["彩蝶鲨","天空组"],["斑枭","天空组"],["泥吼牙","天空组"],["电企鹅","天空组"],["皇家狮鹫（崖间地的样子）","天空组"],["皇家狮鹫（高山地的样子）","天空组"],["粉耳星兔","天空组"],["绅士鸡","天空组"],["翠顶夫人","天空组"],["翼龙","天空组"],["花魁蜂后","天空组"],["蒲公英娃娃","天空组"],["铠甲虫","天空组"],["锤头鹭","天空组"],["高脚鹭","天空组"],["魔誉鸟","天空组"],["鸭吉吉","天空组"],
+  ["化蝶（平常的样子）","昆虫组"],["恶魔红钻","昆虫组"],["捕尘长绒","昆虫组"],["燃薪虫","昆虫组"],["窃光蚁","昆虫组"],["芋香巨角蛛","昆虫组"],["花衣蝶","昆虫组"],["花魁蜂后","昆虫组"],["铠甲虫","昆虫组"],["陨星虫","昆虫组"],["风滚暮虫（金黄的样子）","昆虫组"],
+  ["上岸蛙","两栖组"],["卡瓦重","两栖组"],["卷毛鸭","两栖组"],["卷胡巨獭","两栖组"],["嗡波螺","两栖组"],["寒音蛇","两栖组"],["水泡壳（本来的样子）","两栖组"],["泥吼牙","两栖组"],["海豹船长","两栖组"],["游蛇魔使","两栖组"],["石冠王蜥（本来的样子）","两栖组"],["翠顶夫人","两栖组"],["锤头鹭","两栖组"],["鳗尾兽","两栖组"],
+  ["乌拉塔（极星的样子）","巨灵组"],["干棘盔","巨灵组"],["古卷执政官","巨灵组"],["嘀咻鸟","巨灵组"],["圣剑-X","巨灵组"],["夜枭","巨灵组"],["寂灭骨龙","巨灵组"],["布克棱岩","巨灵组"],["恶魔红钻","巨灵组"],["暮星辰","巨灵组"],["月牙雪熊","巨灵组"],["梦想三三","巨灵组"],["波多西","巨灵组"],["深蓝鲸","巨灵组"],["火焰猿","巨灵组"],["火神","巨灵组"],["烈火守护","巨灵组"],["画间法师手","巨灵组"],["白金独角兽","巨灵组"],["瞌睡王","巨灵组"],["罗隐","巨灵组"],["雪巨人","巨灵组"],
+];
+
+const spiritMap = {};
+RAW.forEach(([name, grp]) => {
+  if (!spiritMap[name]) spiritMap[name] = [];
+  if (!spiritMap[name].includes(grp)) spiritMap[name].push(grp);
+});
+
+const groupMap = {};
+RAW.forEach(([name, grp]) => {
+  if (!groupMap[grp]) groupMap[grp] = new Set();
+  groupMap[grp].add(name);
+});
+
+const GROUPS = Object.keys(GROUP_COLORS);
+let selected = new Set();
+let mode = 'or';
+
+function setMode(m) {
+  mode = m;
+  document.getElementById('mode-or').className = 'mode-btn' + (m === 'or' ? ' active' : '');
+  document.getElementById('mode-and').className = 'mode-btn' + (m === 'and' ? ' active' : '');
+  render();
+}
+
+function clearAll() {
+  selected.clear();
+  document.getElementById('search').value = '';
+  render();
+}
+
+function toggleGroup(g) {
+  if (selected.has(g)) selected.delete(g);
+  else selected.add(g);
+  render();
+}
+
+function highlight(text, query) {
+  if (!query) return text;
+  const idx = text.indexOf(query);
+  if (idx === -1) return text;
+  return text.slice(0, idx) + '<mark>' + text.slice(idx, idx + query.length) + '</mark>' + text.slice(idx + query.length);
+}
+
+function getFilteredSpirits() {
+  const q = document.getElementById('search').value.trim();
+  const allNames = Object.keys(spiritMap);
+
+  let byGroup;
+  if (selected.size === 0) {
+    byGroup = new Set(allNames);
+  } else {
+    const sets = [...selected].map(g => groupMap[g] || new Set());
+    if (mode === 'or') {
+      byGroup = new Set();
+      sets.forEach(s => s.forEach(n => byGroup.add(n)));
+    } else {
+      const [first, ...rest] = sets;
+      byGroup = new Set([...first].filter(n => rest.every(s => s.has(n))));
+    }
+  }
+
+  let result = [...byGroup];
+  if (q) result = result.filter(n => n.includes(q));
+  return result.sort((a, b) => a.localeCompare(b, 'zh'));
+}
+
+function render() {
+  const q = document.getElementById('search').value.trim();
+
+  // 渲染蛋组按钮
+  const btnCont = document.getElementById('group-btns');
+  btnCont.innerHTML = '';
+  GROUPS.forEach(g => {
+    const b = document.createElement('button');
+    const isActive = selected.has(g);
+    b.className = 'grp-btn' + (isActive ? ' active' : '');
+    b.textContent = g;
+    if (isActive) b.style.background = GROUP_COLORS[g];
+    b.onclick = () => toggleGroup(g);
+    btnCont.appendChild(b);
+  });
+
+  const spirits = getFilteredSpirits();
+  const bar = document.getElementById('result-bar');
+  const list = document.getElementById('spirit-list');
+  list.innerHTML = '';
+
+  // 结果提示语
+  const noFilter = selected.size === 0 && !q;
+  if (noFilter) {
+    bar.textContent = `全部 ${Object.keys(spiritMap).length} 只精灵（选择蛋组或搜索名称以筛选）`;
+  } else {
+    let label = '';
+    if (selected.size > 0) {
+      const arr = [...selected];
+      label = mode === 'or' ? `蛋组：${arr.join(' / ')}` : `蛋组：${arr.join(' + ')}`;
+    }
+    if (q) label += (label ? '  ·  ' : '') + `搜索："${q}"`;
+    bar.textContent = `${label}  —  共 ${spirits.length} 只`;
+  }
+
+  if (spirits.length === 0) {
+    const el = document.createElement('div');
+    el.className = 'empty';
+    el.textContent = '没有符合条件的精灵';
+    list.appendChild(el);
+    return;
+  }
+
+  spirits.forEach(name => {
+    const allGroups = spiritMap[name];
+    const card = document.createElement('div');
+    card.className = 'spirit-card';
+
+    const nameEl = document.createElement('span');
+    nameEl.className = 'spirit-name';
+    nameEl.innerHTML = highlight(name, q);
+    card.appendChild(nameEl);
+
+    const badges = document.createElement('div');
+    badges.className = 'badges';
+
+    allGroups.forEach(grp => {
+      const b = document.createElement('span');
+      b.className = 'badge' + (selected.has(grp) ? ' selected-badge' : '');
+      b.style.background = GROUP_COLORS[grp] || '#555';
+      b.textContent = grp;
+      b.title = selected.has(grp) ? '点击取消该蛋组' : '点击筛选该蛋组';
+      b.onclick = () => toggleGroup(grp);
+      badges.appendChild(b);
+    });
+
+    card.appendChild(badges);
+    list.appendChild(card);
+  });
+}
+
+render();
+</script>
+</body>
+</html>

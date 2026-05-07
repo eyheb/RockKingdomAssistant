@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="zh-CN" class="theme-snow">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>洛克王国虚拟助手</title>
+    <link rel="icon" href="/favicon.svg?v=20260507-2" />
+    <link rel="stylesheet" href="/styles.css?v=20260507-2" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <div class="logo-mark" aria-hidden="true">洛</div>
+          <div>
+            <strong>Rock Assistant</strong>
+            <span>洛克王国资料工作台</span>
+          </div>
+        </div>
+
+        <button class="new-chat" id="newChat" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+          新对话
+        </button>
+
+        <nav class="nav-list" aria-label="主导航">
+          <button class="nav-item active" data-view="assistant" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"></path></svg>
+            助手问答
+          </button>
+          <button class="nav-item" data-view="spirits" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 7v10l8 4 8-4V7l-8-4Z"></path><path d="m4 7 8 4 8-4M12 11v10"></path></svg>
+            精灵资料
+          </button>
+          <button class="nav-item" data-view="groups" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10v10H7z"></path><path d="M3 3h6v6H3zM15 3h6v6h-6zM3 15h6v6H3zM15 15h6v6h-6z"></path></svg>
+            蛋组浏览
+          </button>
+          <button class="nav-item" data-view="exchange" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 1l4 4-4 4"></path><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><path d="M7 23l-4-4 4-4"></path><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg>
+            交换记录
+          </button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <label class="mini-field">
+            <span>访问密码</span>
+            <input id="password" type="password" placeholder="未设置可留空" />
+          </label>
+          <div class="model-chip" id="modelStatus">本地资料已加载</div>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Rock Kingdom World</p>
+            <h1 id="viewTitle">助手问答</h1>
+          </div>
+          <div class="global-search">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.3-4.3m1.3-5.2a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z"></path></svg>
+            <input id="lookup" placeholder="搜索精灵、蛋组、朋友、性格" autocomplete="off" />
+          </div>
+        </header>
+
+        <section class="content-grid">
+          <section class="primary-pane surface-card" id="assistantView">
+            <div class="pane-head">
+              <div>
+                <h2>洛克王国虚拟助手</h2>
+                <p id="assistantMeta">资料加载中</p>
+              </div>
+              <span class="muted-chip" id="status">就绪</span>
+            </div>
+
+            <div id="messages" class="messages"></div>
+
+            <div class="starter-row" id="quickList"></div>
+
+            <form id="chatForm" class="composer">
+              <textarea id="chatInput" rows="2" placeholder="输入问题"></textarea>
+              <button id="sendBtn" class="btn-primary" type="submit" aria-label="发送">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4 20-7Z"></path><path d="M22 2 11 13"></path></svg>
+              </button>
+            </form>
+          </section>
+
+          <section class="primary-pane surface-card hidden" id="spiritsView">
+            <div class="pane-head">
+              <div>
+                <h2>精灵资料</h2>
+                <p id="spiritMeta">资料加载中</p>
+              </div>
+              <span class="muted-chip" id="spiritCount">0 精灵</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>精灵</th>
+                    <th>蛋组</th>
+                    <th>交换</th>
+                  </tr>
+                </thead>
+                <tbody id="spiritTable"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="primary-pane surface-card hidden" id="groupsView">
+            <div class="pane-head">
+              <div>
+                <h2>蛋组浏览</h2>
+                <p id="groupMeta">资料加载中</p>
+              </div>
+              <span class="muted-chip" id="groupCount">0 蛋组</span>
+            </div>
+            <div class="group-grid" id="groupGrid"></div>
+          </section>
+
+          <section class="primary-pane surface-card hidden" id="exchangeView">
+            <div class="pane-head">
+              <div>
+                <h2>交换记录</h2>
+                <p id="exchangeMeta">资料加载中</p>
+              </div>
+              <span class="muted-chip" id="exchangeCount">0 记录</span>
+            </div>
+            <div class="exchange-list" id="exchangeList"></div>
+          </section>
+
+          <aside class="inspector surface-card">
+            <div class="pane-head compact">
+              <div>
+                <h2>匹配资料</h2>
+                <p id="resultMeta">输入关键词后显示结果</p>
+              </div>
+            </div>
+
+            <div class="inspector-scroll">
+              <section class="result-section">
+                <h3>精灵</h3>
+                <div id="spirits" class="result-list"></div>
+              </section>
+              <section class="result-section">
+                <h3>蛋组</h3>
+                <div id="groups" class="result-list"></div>
+              </section>
+              <section class="result-section">
+                <h3>交换记录</h3>
+                <div id="exchange" class="result-list"></div>
+              </section>
+            </div>
+          </aside>
+        </section>
+      </main>
+    </div>
+
+    <script src="/app.js?v=20260507-2" type="module"></script>
+  </body>
+</html>

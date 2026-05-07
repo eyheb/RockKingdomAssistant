@@ -1,0 +1,42 @@
+{
+  "generatedAt": "2026-05-07T13:32:55.421Z",
+  "entries": [
+    {
+      "id": "老马",
+      "spirit": "伊兰亚龙",
+      "gender": "公",
+      "eggGroups": [
+        "龙组"
+      ],
+      "nature": "固执",
+      "stats": {
+        "hp": "",
+        "attack": "",
+        "magicAttack": "",
+        "defense": "",
+        "magicDefense": "",
+        "speed": ""
+      },
+      "note": ""
+    },
+    {
+      "id": "老马",
+      "spirit": "魔力猫",
+      "gender": "母",
+      "eggGroups": [
+        "拟人组",
+        "动物组"
+      ],
+      "nature": "胆小",
+      "stats": {
+        "hp": "",
+        "attack": "",
+        "magicAttack": "",
+        "defense": "",
+        "magicDefense": "",
+        "speed": ""
+      },
+      "note": ""
+    }
+  ]
+}

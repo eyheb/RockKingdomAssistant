@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: rock-virtual-assistant
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/data
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: LLM_BASE_URL
+        sync: false
+      - key: LLM_MODEL
+        sync: false
+      - key: LLM_API_KEY
+        sync: false
+      - key: SITE_PASSWORD
+        sync: false
