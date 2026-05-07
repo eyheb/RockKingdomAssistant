@@ -5,8 +5,9 @@ import { fileURLToPath } from "node:url";
 const __filename = fileURLToPath(import.meta.url);
 const projectRoot = path.resolve(path.dirname(__filename), "..");
 const localStorePath = path.join(projectRoot, "data", "community-exchange.json");
+const localWritableStorePath = path.join(projectRoot, ".community-exchange.local.json");
 const defaultStore = {
-  version: 1,
+  version: 2,
   updatedAt: "",
   users: [],
   entries: []
@@ -22,10 +23,10 @@ function cleanText(value, limit = 80) {
 
 function normalizeStore(store) {
   return {
-    version: 1,
+    version: 2,
     updatedAt: store?.updatedAt || "",
     users: Array.isArray(store?.users) ? store.users : [],
-    entries: Array.isArray(store?.entries) ? store.entries : []
+    entries: Array.isArray(store?.entries) ? store.entries.map(normalizeEntry) : []
   };
 }
 
@@ -102,6 +103,13 @@ export async function readCommunityStore() {
   }
 
   try {
+    const writableContent = await fs.readFile(localWritableStorePath, "utf8");
+    return normalizeStore(JSON.parse(writableContent));
+  } catch {
+    // Fall back to the checked-in seed file when no local writable copy exists.
+  }
+
+  try {
     const content = await fs.readFile(localStorePath, "utf8");
     return normalizeStore(JSON.parse(content));
   } catch {
@@ -120,29 +128,46 @@ async function writeCommunityStore(store) {
     return normalized;
   }
 
-  await fs.mkdir(path.dirname(localStorePath), { recursive: true });
-  await fs.writeFile(localStorePath, JSON.stringify(normalized, null, 2), "utf8");
+  try {
+    await fs.mkdir(path.dirname(localStorePath), { recursive: true });
+    await fs.writeFile(localStorePath, JSON.stringify(normalized, null, 2), "utf8");
+  } catch {
+    await fs.writeFile(localWritableStorePath, JSON.stringify(normalized, null, 2), "utf8");
+  }
   return normalized;
 }
 
-function sanitizeUser(input, existingUser) {
-  const name = cleanText(input?.name, 24);
-  if (!name) throw new Error("用户名不能为空");
+function normalizeEntry(input) {
   return {
-    id: existingUser?.id || cleanText(input?.id, 80) || uid("user"),
-    name,
-    createdAt: existingUser?.createdAt || nowIso(),
-    updatedAt: nowIso()
+    id: cleanText(input?.id, 80) || uid("entry"),
+    player: cleanText(input?.player || input?.ownerName || input?.owner || input?.id, 40),
+    spirit: cleanText(input?.spirit, 40),
+    gender: cleanText(input?.gender, 8),
+    nature: cleanText(input?.nature, 20),
+    level: cleanText(input?.level, 10),
+    eggGroups: Array.isArray(input?.eggGroups) ? input.eggGroups.map((item) => cleanText(item, 20)).filter(Boolean) : [],
+    stats: {
+      hp: cleanText(input?.stats?.hp, 12),
+      attack: cleanText(input?.stats?.attack, 12),
+      magicAttack: cleanText(input?.stats?.magicAttack, 12),
+      defense: cleanText(input?.stats?.defense, 12),
+      magicDefense: cleanText(input?.stats?.magicDefense, 12),
+      speed: cleanText(input?.stats?.speed, 12)
+    },
+    note: cleanText(input?.note, 160),
+    createdAt: input?.createdAt || "",
+    updatedAt: input?.updatedAt || ""
   };
 }
 
-function sanitizeEntry(input, existingEntry, owner) {
+function sanitizeEntry(input, existingEntry) {
+  const player = cleanText(input?.player || input?.ownerName || input?.owner, 40);
   const spirit = cleanText(input?.spirit, 40);
+  if (!player) throw new Error("玩家不能为空");
   if (!spirit) throw new Error("精灵名不能为空");
   return {
     id: existingEntry?.id || cleanText(input?.id, 80) || uid("entry"),
-    ownerId: owner.id,
-    ownerName: owner.name,
+    player,
     spirit,
     gender: cleanText(input?.gender, 8),
     nature: cleanText(input?.nature, 20),
@@ -162,28 +187,10 @@ function sanitizeEntry(input, existingEntry, owner) {
   };
 }
 
-export async function saveCommunityUser(input) {
-  const store = await readCommunityStore();
-  const userIndex = store.users.findIndex((user) => user.id === input?.id);
-  const user = sanitizeUser(input, userIndex === -1 ? null : store.users[userIndex]);
-  if (userIndex === -1) store.users.push(user);
-  else store.users[userIndex] = user;
-
-  store.entries = store.entries.map((entry) =>
-    entry.ownerId === user.id ? { ...entry, ownerName: user.name, updatedAt: nowIso() } : entry
-  );
-  return writeCommunityStore(store);
-}
-
 export async function saveCommunityEntry(input) {
   const store = await readCommunityStore();
-  const owner = store.users.find((user) => user.id === input?.ownerId);
-  if (!owner) throw new Error("请先创建用户名");
   const entryIndex = store.entries.findIndex((entry) => entry.id === input?.id);
-  if (entryIndex !== -1 && store.entries[entryIndex].ownerId !== owner.id) {
-    throw new Error("不能编辑其他用户的记录");
-  }
-  const entry = sanitizeEntry(input, entryIndex === -1 ? null : store.entries[entryIndex], owner);
+  const entry = sanitizeEntry(input, entryIndex === -1 ? null : store.entries[entryIndex]);
   if (entryIndex === -1) store.entries.push(entry);
   else store.entries[entryIndex] = entry;
   return writeCommunityStore(store);
@@ -192,7 +199,6 @@ export async function saveCommunityEntry(input) {
 export async function deleteCommunityEntry(input) {
   const store = await readCommunityStore();
   const id = cleanText(input?.id, 80);
-  const ownerId = cleanText(input?.ownerId, 80);
-  store.entries = store.entries.filter((entry) => !(entry.id === id && entry.ownerId === ownerId));
+  store.entries = store.entries.filter((entry) => entry.id !== id);
   return writeCommunityStore(store);
 }

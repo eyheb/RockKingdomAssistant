@@ -22,6 +22,15 @@ SITE_PASSWORD=
 
 Leave `SITE_PASSWORD` empty if you do not want a shared password gate.
 
+For the shared exchange table to persist edits on Vercel, also add:
+
+```dotenv
+COMMUNITY_GITHUB_REPO=eyheb/RockKingdomAssistant
+COMMUNITY_GITHUB_TOKEN=your_contents_read_write_token
+COMMUNITY_GITHUB_BRANCH=main
+COMMUNITY_GITHUB_PATH=data/community-exchange.json
+```
+
 ## Build Settings
 
 These are already configured in `vercel.json`:

@@ -16,8 +16,8 @@ function readJson(filename, fallback) {
 function normalizeCommunityEntries(file) {
   return (file.entries || []).map((entry) => ({
     ...entry,
-    id: entry.ownerName || entry.ownerId || entry.id,
-    ownerName: entry.ownerName || entry.id || "",
+    id: entry.id || "",
+    player: entry.player || entry.ownerName || entry.owner || "",
     spirit: entry.spirit || "",
     gender: entry.gender || "",
     nature: entry.nature || "",
@@ -33,15 +33,14 @@ export function loadData() {
   const exchangeFile = readJson("exchange.json", { entries: [] });
   const biligameDexFile = readJson("biligame-spirit-dex.json", { spirits: [], source: null });
   const biligameDetailsFile = readJson("biligame-spirit-details.json", { details: [], source: null });
-  const communityExchangeFile = readJson("community-exchange.json", { users: [], entries: [] });
-  const communityExchange = normalizeCommunityEntries(communityExchangeFile);
+  const communityExchangeFile = readJson("community-exchange.json", null);
+  const communityExchange = normalizeCommunityEntries(communityExchangeFile || { entries: [] });
 
   return {
     spirits: spiritFile.spirits,
     groups: eggGroupFile.groups,
-    exchange: communityExchange.length ? communityExchange : exchangeFile.entries,
+    exchange: communityExchangeFile ? communityExchange : exchangeFile.entries,
     communityExchange,
-    communityUsers: communityExchangeFile.users || [],
     biligameDex: biligameDexFile.spirits,
     biligameDetails: biligameDetailsFile.details,
     sources: {
@@ -58,9 +57,8 @@ export async function loadDataAsync() {
     const communityExchange = normalizeCommunityEntries(communityStore);
     return {
       ...data,
-      exchange: communityExchange.length ? communityExchange : data.exchange,
-      communityExchange,
-      communityUsers: communityStore.users || []
+      exchange: communityExchange,
+      communityExchange
     };
   } catch {
     return data;
@@ -172,6 +170,7 @@ function searchKnowledgeInData(data, query, limit = 12) {
       includesAny(
         [
           entry.id,
+          entry.player,
           entry.spirit,
           entry.gender,
           entry.nature,
@@ -226,7 +225,7 @@ export function formatResultsForPrompt(results) {
         .filter(([, value]) => value)
         .map(([key, value]) => `${key}=${value}`)
         .join("，");
-      return `- ${item.id}：${item.spirit}，${item.gender || "性别未知"}，蛋组 ${item.eggGroups.join("、") || "未知"}，性格 ${item.nature || "未知"}${stats ? `，资质 ${stats}` : ""}${item.note ? `，备注 ${item.note}` : ""}`;
+      return `- ${item.player || item.id}：${item.spirit}，${item.gender || "性别未知"}，蛋组 ${item.eggGroups.join("、") || "未知"}，性格 ${item.nature || "未知"}${stats ? `，资质 ${stats}` : ""}${item.note ? `，备注 ${item.note}` : ""}`;
     })
   ];
 
@@ -278,7 +277,7 @@ function localFallbackAnswerFromResults(results) {
   if (results.exchange.length) {
     parts.push(
       `交换记录：${results.exchange
-        .map((item) => `${item.id} 有 ${item.spirit}${item.gender ? `（${item.gender}）` : ""}${item.nature ? `，${item.nature}` : ""}`)
+        .map((item) => `${item.player || item.id} 有 ${item.spirit}${item.gender ? `（${item.gender}）` : ""}${item.nature ? `，${item.nature}` : ""}`)
         .join("；")}`
     );
   }

@@ -4,6 +4,7 @@ node_modules/
 dist/
 .env
 .env.local
+.community-exchange.local.json
 dev.log
 dev.err.log
 tunnel.log

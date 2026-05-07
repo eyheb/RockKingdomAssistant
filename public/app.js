@@ -9,12 +9,6 @@ const shinyOptions = [
   { value: "yes", label: "有异色" },
   { value: "no", label: "没异色" }
 ];
-const legacyOwnerStorageKey = "rock-assistant-community-user-id";
-const ownerStorageKey = "rock-kingdom-assistant-community-user-id";
-if (!localStorage.getItem(ownerStorageKey) && localStorage.getItem(legacyOwnerStorageKey)) {
-  localStorage.setItem(ownerStorageKey, localStorage.getItem(legacyOwnerStorageKey));
-}
-
 const viewTitles = {
   assistant: "助手问答",
   spirits: "精灵资料",
@@ -46,8 +40,7 @@ const state = {
   selectedSpiritUrl: ""
   ,
   community: { users: [], entries: [], updatedAt: "" },
-  communityFilter: "",
-  currentUserId: localStorage.getItem(ownerStorageKey) || ""
+  communityFilter: ""
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -81,25 +74,9 @@ const elements = {
   detailView: $("#detailView"),
   detailContent: $("#detailContent"),
   groupGrid: $("#groupGrid"),
-  communityUserForm: $("#communityUserForm"),
-  communityUserName: $("#communityUserName"),
-  communityUserMeta: $("#communityUserMeta"),
-  communityEntryForm: $("#communityEntryForm"),
-  entryId: $("#entryId"),
-  entrySpirit: $("#entrySpirit"),
-  entryGender: $("#entryGender"),
-  entryNature: $("#entryNature"),
-  entryLevel: $("#entryLevel"),
-  entryEggGroups: $("#entryEggGroups"),
-  entryHp: $("#entryHp"),
-  entryAttack: $("#entryAttack"),
-  entryMagicAttack: $("#entryMagicAttack"),
-  entryDefense: $("#entryDefense"),
-  entryMagicDefense: $("#entryMagicDefense"),
-  entrySpeed: $("#entrySpeed"),
-  entryNote: $("#entryNote"),
-  entryReset: $("#entryReset"),
   exchangeFilter: $("#exchangeFilter"),
+  exchangeAddRow: $("#exchangeAddRow"),
+  exchangeSaveAll: $("#exchangeSaveAll"),
   exchangeRefresh: $("#exchangeRefresh"),
   exchangeTableBody: $("#exchangeTableBody"),
   spiritNameList: $("#spiritNameList"),
@@ -132,10 +109,6 @@ function splitList(value) {
     .split(/[,\s，、/]+/)
     .map((item) => item.trim())
     .filter(Boolean);
-}
-
-function currentUser() {
-  return state.community.users.find((user) => user.id === state.currentUserId) || null;
 }
 
 function statText(stats = {}) {
@@ -223,7 +196,7 @@ function renderInspector(data) {
     ? data.exchange
         .map((item) =>
           resultCard(
-            `${item.id} · ${item.spirit}`,
+            `${exchangePlayer(item) || "未填玩家"} · ${item.spirit}`,
             [item.gender, item.eggGroups.join(" / "), item.nature, item.note].filter(Boolean).join(" · ")
           )
         )
@@ -299,9 +272,7 @@ async function loadCommunityExchange() {
   const response = await fetch("/api/community-exchange");
   if (!response.ok) throw new Error(`交换表读取失败：${response.status}`);
   state.community = await response.json();
-  if (!currentUser() && state.community.users?.[0] && !state.currentUserId) {
-    state.currentUserId = "";
-  }
+  state.data.exchange = state.community.entries || [];
   renderCommunityExchange();
 }
 
@@ -319,6 +290,107 @@ async function saveCommunity(payload) {
   await runSearch(elements.lookup.value);
 }
 
+function exchangePlayer(entry) {
+  const fallbackId = String(entry.id || "");
+  const isInternalId = fallbackId.startsWith("entry-") || fallbackId.startsWith("legacy-");
+  return entry.player || entry.ownerName || entry.owner || (isInternalId ? "" : fallbackId);
+}
+
+function setExchangeStatus(message) {
+  elements.exchangeMeta.textContent = message;
+}
+
+function exchangeCell(value, field, id, extra = "") {
+  return `<input class="exchange-cell ${extra}" data-entry-id="${escapeHtml(id)}" data-field="${field}" value="${escapeHtml(value || "")}" />`;
+}
+
+function exchangeGender(value, id) {
+  const options = ["", "公", "母", "无性别"];
+  return `
+    <select class="exchange-cell" data-entry-id="${escapeHtml(id)}" data-field="gender">
+      ${options.map((option) => `<option value="${escapeHtml(option)}" ${option === value ? "selected" : ""}>${escapeHtml(option || "未知")}</option>`).join("")}
+    </select>
+  `;
+}
+
+function rowFromElement(row) {
+  const entry = {
+    id: row.dataset.entryId,
+    player: "",
+    spirit: "",
+    gender: "",
+    nature: "",
+    level: "",
+    eggGroups: [],
+    stats: {
+      hp: "",
+      attack: "",
+      magicAttack: "",
+      defense: "",
+      magicDefense: "",
+      speed: ""
+    },
+    note: ""
+  };
+
+  row.querySelectorAll("[data-field]").forEach((field) => {
+    const key = field.dataset.field;
+    const value = field.value.trim();
+    if (key === "eggGroups") {
+      entry.eggGroups = splitList(value);
+    } else if (key.startsWith("stats.")) {
+      entry.stats[key.slice(6)] = value;
+    } else {
+      entry[key] = value;
+    }
+  });
+
+  return entry;
+}
+
+function markExchangeDirty(row, dirty = true) {
+  row.classList.toggle("dirty", dirty);
+}
+
+async function saveExchangeRow(row) {
+  const entry = rowFromElement(row);
+  await saveCommunity({ action: "saveEntry", entry });
+  setExchangeStatus("已保存这一行");
+}
+
+async function saveAllExchangeRows() {
+  const rows = [...elements.exchangeTableBody.querySelectorAll("tr[data-entry-id]")];
+  for (const row of rows) {
+    const entry = rowFromElement(row);
+    if (!entry.player && !entry.spirit && !entry.note) continue;
+    await saveCommunity({ action: "saveEntry", entry });
+  }
+  setExchangeStatus("已保存当前表格");
+}
+
+function addExchangeRow() {
+  const id = `entry-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const entry = {
+    id,
+    player: "",
+    spirit: "",
+    gender: "",
+    nature: "",
+    level: "",
+    eggGroups: [],
+    stats: {},
+    note: ""
+  };
+  state.community.entries = [entry, ...(state.community.entries || [])];
+  state.data.exchange = state.community.entries;
+  renderCommunityExchange();
+  const row = elements.exchangeTableBody.querySelector(`tr[data-entry-id="${CSS.escape(id)}"]`);
+  if (row) {
+    row.querySelector("[data-field='player']")?.focus();
+    markExchangeDirty(row);
+  }
+}
+
 function populateSpiritList() {
   const names = [...new Set([...(state.data.biligameDex || []).map((item) => item.name), ...(state.data.spirits || []).map((item) => item.name)])]
     .sort((a, b) => a.localeCompare(b, "zh-Hans-CN"));
@@ -327,14 +399,12 @@ function populateSpiritList() {
 
 function renderCommunityExchange() {
   if (!elements.exchangeTableBody) return;
-  const user = currentUser();
   const entries = getAllExchangeEntries();
   const query = normalize(state.communityFilter);
   const filtered = entries.filter((entry) => {
     if (!query) return true;
     return [
-      entry.ownerName,
-      entry.id,
+      exchangePlayer(entry),
       entry.spirit,
       entry.gender,
       entry.nature,
@@ -346,73 +416,33 @@ function renderCommunityExchange() {
   });
 
   elements.exchangeCount.textContent = `${entries.length} 记录`;
-  elements.exchangeMeta.textContent = user
-    ? `${user.name} · ${entries.length} 条共享记录`
-    : `${entries.length} 条共享记录 · 先创建用户名再录入`;
-  elements.communityUserName.value = user?.name || "";
-  elements.communityUserMeta.textContent = user ? `当前用户：${user.name}` : "未创建用户名";
+  elements.exchangeMeta.textContent = `${entries.length} 条共享记录 · 所有人都可以直接编辑`;
 
   elements.exchangeTableBody.innerHTML = filtered.length
-    ? filtered.map((entry) => {
-        const canEdit = user && entry.ownerId === user.id;
-        return `
-          <tr>
-            <td>${escapeHtml(entry.ownerName || entry.id || "")}</td>
-            <td><strong>${escapeHtml(entry.spirit)}</strong></td>
-            <td>${escapeHtml(entry.gender || "-")}</td>
-            <td>${escapeHtml(entry.nature || "-")}</td>
-            <td>${escapeHtml(entry.level || "-")}</td>
-            <td>${tagsHtml(entry.eggGroups || [])}</td>
-            <td>${escapeHtml(statText(entry.stats) || "-")}</td>
-            <td>${escapeHtml(entry.note || "")}</td>
-            <td>
-              <div class="row-actions">
-                ${canEdit ? `<button type="button" data-edit-entry="${escapeHtml(entry.id)}">编辑</button><button type="button" data-delete-entry="${escapeHtml(entry.id)}">删除</button>` : `<span class="muted-action">只读</span>`}
-              </div>
-            </td>
-          </tr>
-        `;
-      }).join("")
-    : `<tr><td colspan="9"><p class="empty">没有匹配记录。</p></td></tr>`;
-}
-
-function syncEggGroupsFromSpirit() {
-  const spirit = getSpiritByName(elements.entrySpirit.value);
-  if (spirit && !elements.entryEggGroups.value.trim()) {
-    elements.entryEggGroups.value = spirit.eggGroups.join("、");
-  }
-}
-
-function resetEntryForm() {
-  elements.entryId.value = "";
-  elements.entrySpirit.value = "";
-  elements.entryGender.value = "";
-  elements.entryNature.value = "";
-  elements.entryLevel.value = "";
-  elements.entryEggGroups.value = "";
-  elements.entryHp.value = "";
-  elements.entryAttack.value = "";
-  elements.entryMagicAttack.value = "";
-  elements.entryDefense.value = "";
-  elements.entryMagicDefense.value = "";
-  elements.entrySpeed.value = "";
-  elements.entryNote.value = "";
-}
-
-function fillEntryForm(entry) {
-  elements.entryId.value = entry.id || "";
-  elements.entrySpirit.value = entry.spirit || "";
-  elements.entryGender.value = entry.gender || "";
-  elements.entryNature.value = entry.nature || "";
-  elements.entryLevel.value = entry.level || "";
-  elements.entryEggGroups.value = (entry.eggGroups || []).join("、");
-  elements.entryHp.value = entry.stats?.hp || "";
-  elements.entryAttack.value = entry.stats?.attack || "";
-  elements.entryMagicAttack.value = entry.stats?.magicAttack || "";
-  elements.entryDefense.value = entry.stats?.defense || "";
-  elements.entryMagicDefense.value = entry.stats?.magicDefense || "";
-  elements.entrySpeed.value = entry.stats?.speed || "";
-  elements.entryNote.value = entry.note || "";
+    ? filtered.map((entry) => `
+        <tr data-entry-id="${escapeHtml(entry.id)}">
+          <td>${exchangeCell(exchangePlayer(entry), "player", entry.id, "w-player")}</td>
+          <td>${exchangeCell(entry.spirit, "spirit", entry.id, "w-spirit")}</td>
+          <td>${exchangeGender(entry.gender || "", entry.id)}</td>
+          <td>${exchangeCell(entry.nature, "nature", entry.id, "w-short")}</td>
+          <td>${exchangeCell(entry.level, "level", entry.id, "w-mini")}</td>
+          <td>${exchangeCell((entry.eggGroups || []).join("、"), "eggGroups", entry.id, "w-groups")}</td>
+          <td>${exchangeCell(entry.stats?.hp, "stats.hp", entry.id, "w-mini")}</td>
+          <td>${exchangeCell(entry.stats?.attack, "stats.attack", entry.id, "w-mini")}</td>
+          <td>${exchangeCell(entry.stats?.magicAttack, "stats.magicAttack", entry.id, "w-mini")}</td>
+          <td>${exchangeCell(entry.stats?.defense, "stats.defense", entry.id, "w-mini")}</td>
+          <td>${exchangeCell(entry.stats?.magicDefense, "stats.magicDefense", entry.id, "w-mini")}</td>
+          <td>${exchangeCell(entry.stats?.speed, "stats.speed", entry.id, "w-mini")}</td>
+          <td>${exchangeCell(entry.note, "note", entry.id, "w-note")}</td>
+          <td>
+            <div class="row-actions">
+              <button type="button" data-save-entry="${escapeHtml(entry.id)}">保存</button>
+              <button type="button" data-delete-entry="${escapeHtml(entry.id)}">删除</button>
+            </div>
+          </td>
+        </tr>
+      `).join("")
+    : `<tr><td colspan="14"><p class="empty">没有匹配记录。</p></td></tr>`;
 }
 
 function getDetailsByUrl() {
@@ -528,7 +558,7 @@ function renderDexGrid() {
       const exchangeRows = exchangeBySpirit.get(item.name) || [];
       const detail = detailsByUrl.get(item.wikiUrl);
       const exchangeText = exchangeRows.length
-        ? exchangeRows.map((row) => `${row.id}${row.gender ? ` ${row.gender}` : ""}${row.nature ? ` ${row.nature}` : ""}`).join("；")
+        ? exchangeRows.map((row) => `${exchangePlayer(row) || "未填玩家"}${row.gender ? ` ${row.gender}` : ""}${row.nature ? ` ${row.nature}` : ""}`).join("；")
         : "";
       const detailText = detail?.stats?.total
         ? `种族值 ${detail.stats.total}${detail.characteristics?.[0]?.name ? ` · ${detail.characteristics[0].name}` : ""}`
@@ -828,69 +858,60 @@ function wireEvents() {
     renderDetailView(button.dataset.wikiUrl);
   });
 
-  elements.communityUserForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const name = elements.communityUserName.value.trim();
-    if (!name) return;
-    const id = state.currentUserId || `user-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-    await saveCommunity({ action: "saveUser", user: { id, name } });
-    state.currentUserId = id;
-    localStorage.setItem(ownerStorageKey, id);
-    renderCommunityExchange();
-  });
-
-  elements.entrySpirit.addEventListener("change", syncEggGroupsFromSpirit);
-  elements.entrySpirit.addEventListener("blur", syncEggGroupsFromSpirit);
-  elements.entryReset.addEventListener("click", resetEntryForm);
   elements.exchangeFilter.addEventListener("input", () => {
     state.communityFilter = elements.exchangeFilter.value;
     renderCommunityExchange();
+  });
+  elements.exchangeAddRow.addEventListener("click", addExchangeRow);
+  elements.exchangeSaveAll.addEventListener("click", async () => {
+    try {
+      await saveAllExchangeRows();
+    } catch (error) {
+      setExchangeStatus(error.message || "保存失败");
+    }
   });
   elements.exchangeRefresh.addEventListener("click", async () => {
     await loadCommunityExchange();
     await runSearch(elements.lookup.value);
   });
-  elements.communityEntryForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const user = currentUser();
-    if (!user) {
-      elements.communityUserMeta.textContent = "请先保存用户名";
-      return;
+  elements.exchangeTableBody.addEventListener("input", (event) => {
+    const field = event.target.closest("[data-field]");
+    if (!field) return;
+    const row = field.closest("tr[data-entry-id]");
+    markExchangeDirty(row);
+  });
+  elements.exchangeTableBody.addEventListener("change", (event) => {
+    const field = event.target.closest("[data-field]");
+    if (!field) return;
+    const row = field.closest("tr[data-entry-id]");
+    if (field.dataset.field === "spirit") {
+      const eggGroupInput = row.querySelector("[data-field='eggGroups']");
+      const spirit = getSpiritByName(field.value);
+      if (spirit && eggGroupInput && !eggGroupInput.value.trim()) {
+        eggGroupInput.value = spirit.eggGroups.join("、");
+      }
     }
-    const entry = {
-      id: elements.entryId.value,
-      ownerId: user.id,
-      spirit: elements.entrySpirit.value,
-      gender: elements.entryGender.value,
-      nature: elements.entryNature.value,
-      level: elements.entryLevel.value,
-      eggGroups: splitList(elements.entryEggGroups.value),
-      stats: {
-        hp: elements.entryHp.value,
-        attack: elements.entryAttack.value,
-        magicAttack: elements.entryMagicAttack.value,
-        defense: elements.entryDefense.value,
-        magicDefense: elements.entryMagicDefense.value,
-        speed: elements.entrySpeed.value
-      },
-      note: elements.entryNote.value
-    };
-    await saveCommunity({ action: "saveEntry", entry });
-    resetEntryForm();
+    markExchangeDirty(row);
   });
   elements.exchangeTableBody.addEventListener("click", async (event) => {
-    const editButton = event.target.closest("button[data-edit-entry]");
+    const saveButton = event.target.closest("button[data-save-entry]");
     const deleteButton = event.target.closest("button[data-delete-entry]");
-    if (editButton) {
-      const entry = getAllExchangeEntries().find((item) => item.id === editButton.dataset.editEntry);
-      if (entry) fillEntryForm(entry);
+    if (saveButton) {
+      const row = saveButton.closest("tr[data-entry-id]");
+      try {
+        await saveExchangeRow(row);
+      } catch (error) {
+        setExchangeStatus(error.message || "保存失败");
+      }
       return;
     }
     if (deleteButton) {
-      const user = currentUser();
-      if (!user) return;
-      await saveCommunity({ action: "deleteEntry", id: deleteButton.dataset.deleteEntry, ownerId: user.id });
-      resetEntryForm();
+      try {
+        await saveCommunity({ action: "deleteEntry", id: deleteButton.dataset.deleteEntry });
+        setExchangeStatus("已删除这一行");
+      } catch (error) {
+        setExchangeStatus(error.message || "删除失败");
+      }
     }
   });
 

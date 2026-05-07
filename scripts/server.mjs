@@ -6,8 +6,7 @@ import { callModel as callSharedModel, loadDataAsync, searchKnowledgeAsync } fro
 import {
   deleteCommunityEntry,
   readCommunityStore,
-  saveCommunityEntry,
-  saveCommunityUser
+  saveCommunityEntry
 } from "./community-store.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -169,10 +168,6 @@ export function createServer() {
 
       if (request.method === "POST" && url.pathname === "/api/community-exchange") {
         const body = await readBody(request);
-        if (body.action === "saveUser") {
-          sendJson(response, 200, await saveCommunityUser(body.user));
-          return;
-        }
         if (body.action === "saveEntry") {
           sendJson(response, 200, await saveCommunityEntry(body.entry));
           return;

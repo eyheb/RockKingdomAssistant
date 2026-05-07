@@ -168,82 +168,29 @@
               <span class="muted-chip" id="exchangeCount">0 记录</span>
             </div>
             <div class="exchange-workbench">
-              <aside class="exchange-editor">
-                <section class="exchange-editor-section">
-                  <h3>用户名</h3>
-                  <form id="communityUserForm" class="exchange-form">
-                    <input id="communityUserName" placeholder="例如：老马" autocomplete="off" />
-                    <button type="submit">保存用户名</button>
-                  </form>
-                  <p id="communityUserMeta" class="exchange-meta-text">未创建用户名</p>
-                </section>
-
-                <section class="exchange-editor-section">
-                  <h3>录入精灵</h3>
-                  <form id="communityEntryForm" class="exchange-form stacked">
-                    <input id="entryId" type="hidden" />
-                    <label>
-                      <span>精灵名</span>
-                      <input id="entrySpirit" list="spiritNameList" autocomplete="off" />
-                    </label>
-                    <div class="form-row">
-                      <label>
-                        <span>性别</span>
-                        <select id="entryGender">
-                          <option value="">未知</option>
-                          <option value="公">公</option>
-                          <option value="母">母</option>
-                          <option value="无性别">无性别</option>
-                        </select>
-                      </label>
-                      <label>
-                        <span>性格</span>
-                        <input id="entryNature" autocomplete="off" />
-                      </label>
-                    </div>
-                    <div class="form-row">
-                      <label>
-                        <span>等级</span>
-                        <input id="entryLevel" inputmode="numeric" />
-                      </label>
-                      <label>
-                        <span>蛋组</span>
-                        <input id="entryEggGroups" placeholder="自动带出，可手改" />
-                      </label>
-                    </div>
-                    <div class="stats-grid">
-                      <input id="entryHp" placeholder="生命" />
-                      <input id="entryAttack" placeholder="物攻" />
-                      <input id="entryMagicAttack" placeholder="魔攻" />
-                      <input id="entryDefense" placeholder="物防" />
-                      <input id="entryMagicDefense" placeholder="魔防" />
-                      <input id="entrySpeed" placeholder="速度" />
-                    </div>
-                    <textarea id="entryNote" rows="3" placeholder="备注"></textarea>
-                    <div class="form-actions">
-                      <button type="submit">保存记录</button>
-                      <button id="entryReset" type="button">清空</button>
-                    </div>
-                  </form>
-                </section>
-              </aside>
-
               <section class="exchange-table-pane">
                 <div class="exchange-toolbar">
-                  <input id="exchangeFilter" placeholder="筛选用户名、精灵、性格、备注" />
+                  <input id="exchangeFilter" placeholder="筛选玩家、精灵、性格、备注" />
+                  <button id="exchangeAddRow" type="button">新增一行</button>
+                  <button id="exchangeSaveAll" type="button">保存全部</button>
                   <button id="exchangeRefresh" type="button">刷新</button>
                 </div>
                 <div class="exchange-table-wrap">
                   <table class="exchange-table">
                     <thead>
                       <tr>
-                        <th>用户</th>
+                        <th>玩家</th>
                         <th>精灵</th>
                         <th>性别</th>
                         <th>性格</th>
                         <th>等级</th>
                         <th>蛋组</th>
-                        <th>资质</th>
+                        <th>生命</th>
+                        <th>物攻</th>
+                        <th>魔攻</th>
+                        <th>物防</th>
+                        <th>魔防</th>
+                        <th>速度</th>
                         <th>备注</th>
                         <th>操作</th>
                       </tr>

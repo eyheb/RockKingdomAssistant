@@ -1,8 +1,7 @@
 import {
   deleteCommunityEntry,
   readCommunityStore,
-  saveCommunityEntry,
-  saveCommunityUser
+  saveCommunityEntry
 } from "../scripts/community-store.mjs";
 import { jsonResponse, readJsonBody, textResponse } from "../scripts/api-shared.mjs";
 
@@ -18,9 +17,6 @@ export default {
       }
 
       const body = await readJsonBody(request);
-      if (body.action === "saveUser") {
-        return jsonResponse(await saveCommunityUser(body.user));
-      }
       if (body.action === "saveEntry") {
         return jsonResponse(await saveCommunityEntry(body.entry));
       }
